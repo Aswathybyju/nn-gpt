@@ -1,0 +1,92 @@
+{
+  "hp_experimental_e1": {
+    "comment": [
+      "One CIFAR-10 architecture shown under k distinct training configurations.",
+      "epoch=1, group_by_transform=True, >=3 settings, lr range >= 2x,",
+      "grouped on hyperparameter VALUES (never prm uid).",
+      "Control and experimental differ ONLY in hp_family.show_diagnostics.",
+      "SECONDARY: epoch 1, transform held constant, 183 families. Higher n, but the diagnostics are a near-perfect restatement of accuracy there (mean|rho| 0.93-0.96).",
+      "The prompt asks for the architecture ONLY. Eval overrides any proposed hyperparameters and transform with dataframe.df's prm, so training settings are held fixed across both arms by design: an accuracy difference is attributable to the architecture.",
+      "test_loss is excluded from diagnostic_fields: within-family rho with accuracy is 0.913 even at epoch 10, so it is redundant with the accuracy both arms already show."
+    ],
+    "task": "img-classification",
+    "dataset": "cifar-10",
+    "metric": "acc",
+    "hp_family": {
+      "epoch": 1,
+      "group_by_transform": true,
+      "min_settings": 3,
+      "max_members": 4,
+      "min_lr_ratio": 2.0,
+      "diagnostic_fields": [
+        "train_loss",
+        "train_accuracy"
+      ],
+      "show_diagnostics": true,
+      "show_member_accuracy": true,
+      "nn_prefixes": [],
+      "max_families": null
+    },
+    "input_list": [
+      {
+        "para": "nn",
+        "value": "nn"
+      },
+      {
+        "para": "nn_code",
+        "value": "nn_code"
+      },
+      {
+        "para": "transform_code",
+        "value": "transform_code"
+      }
+    ],
+    "system": [
+      "You are an expert PyTorch neural network architect.",
+      "Output a complete, runnable Python class named 'Net' with all required LEMUR interface methods."
+    ],
+    "prompt": [
+      "Task: Generate a new CIFAR-10 image-classification model.",
+      "",
+      "=== REFERENCE ARCHITECTURE ({nn}) ===",
+      "<tr>",
+      "{transform_code}",
+      "</tr>",
+      "",
+      "<nn>",
+      "{nn_code}",
+      "</nn>",
+      "",
+      "=== THE SAME ARCHITECTURE UNDER SEVERAL TRAINING SETTINGS ===",
+      "The model code above and the transform are identical in every setting",
+      "below; only the training hyperparameters differ.",
+      "",
+      "{hp_family_prompt}",
+      "",
+      "=== YOUR TASK ===",
+      "Propose a new model architecture for this task. Reason from how the",
+      "configurations above behaved: how this architecture responds to a high",
+      "learning rate, whether it overfits easily, where it is limited.",
+      "",
+      "Training settings are fixed by the evaluation harness and are NOT yours to",
+      "choose: do not propose hyperparameters or a transform. Only the",
+      "architecture is yours.",
+      "",
+      "Keep the LEMUR interface: class 'Net' with __init__, forward,",
+      "train_setup(prm), learn(train_data) and a module-level",
+      "supported_hyperparameters().",
+      "",
+      "=== OUTPUT FORMAT ===",
+      "Generate exactly one XML tag and nothing else:",
+      "",
+      "<nn>",
+      "...complete Python code for class Net...",
+      "</nn>",
+      "",
+      "=== CRITICAL RULES ===",
+      "- Output the complete model code inside <nn> tags",
+      "- Works with 32x32 RGB images and 10 classes",
+      "- Do not explain your reasoning"
+    ]
+  }
+}

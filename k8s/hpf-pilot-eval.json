@@ -1,0 +1,95 @@
+{
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+    "name": "hpf-pilot-eval-exp"
+  },
+  "spec": {
+    "parallelism": 1,
+    "backoffLimit": 0,
+    "ttlSecondsAfterFinished": 86400,
+    "template": {
+      "spec": {
+        "restartPolicy": "Never",
+        "containers": [
+          {
+            "name": "ml",
+            "image": "ws.ab/shared/ai-linux-nngpt:v1",
+            "imagePullPolicy": "IfNotPresent",
+            "command": [
+              "/bin/bash",
+              "-c"
+            ],
+            "args": [
+              "cd /a/mm && mkdir -p /a/mm/out && export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && python3 -u -m ab.gpt.act.eval.Eval --nn_train_epochs 3 --only_epoch 0 --nn_name_prefix hpf-exp-pilot 2>&1 | tee -a /a/mm/out/hpf-pilot-eval.log"
+            ],
+            "env": [
+              {
+                "name": "HF_HOME",
+                "value": "/a/mm/.hf"
+              },
+              {
+                "name": "PYTHONUNBUFFERED",
+                "value": "1"
+              }
+            ],
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "runAsUser": 1062,
+              "runAsGroup": 1376
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/dev/shm",
+                "name": "shm"
+              },
+              {
+                "mountPath": "/a/mm",
+                "name": "v0"
+              },
+              {
+                "mountPath": "/a/mm/data",
+                "name": "v1"
+              }
+            ],
+            "resources": {
+              "requests": {
+                "nvidia.com/gpu": 1,
+                "cpu": 8,
+                "memory": "24Gi"
+              },
+              "limits": {
+                "nvidia.com/gpu": 1,
+                "cpu": 32,
+                "memory": "32Gi"
+              }
+            }
+          }
+        ],
+        "volumes": [
+          {
+            "name": "shm",
+            "emptyDir": {
+              "medium": "Memory",
+              "sizeLimit": "16Gi"
+            }
+          },
+          {
+            "name": "v0",
+            "hostPath": {
+              "path": "/shared/ssd/home/b-a-baiju/nngpt/nn-gpt",
+              "type": "DirectoryOrCreate"
+            }
+          },
+          {
+            "name": "v1",
+            "hostPath": {
+              "path": "/shared/local/data/a-group-automl/data",
+              "type": "DirectoryOrCreate"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

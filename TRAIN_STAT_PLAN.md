@@ -20,7 +20,10 @@ beats no information.
 | pair | arms | epoch | grouping | families |
 |---|---|---|---|---|
 | **primary** | `control`, `experimental` | 10 | architecture only (transform varies per member) | 29 |
-| secondary | `control-e1`, `experimental-e1` | 1 | architecture + transform fixed | 183 |
+| secondary | `control-e1`, `experimental-e1` | 1 | architecture + transform fixed | 183* |
+
+\* 180 of the 183 are GenFractalNet variants — one lineage, not 183 independent
+architectures (section 7f). This arm was abandoned.
 
 ## 2. Family definition
 
@@ -120,8 +123,9 @@ same thing as test accuracy, so it dilutes the treatment with a field that adds
 nothing. The two train-side fields that genuinely decouple are what remain.
 Re-add it in `diagnostic_fields` if a field ablation wants it.
 
-Cost of epoch 10: n = 29 families per arm per round instead of 183. Use more
-rounds to reach a usable sample.
+Cost of epoch 10: n = 29 families per arm per round instead of 183 — though the
+183 turned out to be one lineage (section 7f), so the real cost is smaller than
+it looked. Use more rounds to even out the per-family draws.
 
 ## 5. What the families actually vary
 
@@ -182,8 +186,10 @@ from. It does not need to choose the settings for that to hold.
 families, so the units are not independent: the family is a blocking factor. A
 paired test (per-family mean, control vs experimental) has n = 29 pairs however
 many rounds are run. Extra rounds reduce the noise in each family's mean; they
-do not add independent observations. The epoch-1 pair (183 families) is the
-lever for more independent units, at the cost of a weaker treatment (section 4).
+do not add independent observations. The epoch-1 pair (183 families) looked like
+the lever for more independent units, at the cost of a weaker treatment
+(section 4) — but 180 of those families are one architecture lineage, so it never
+offered the independence the count implies (section 7f).
 
 **This machine cannot run the pilot.** No GPU (`nvidia-smi` absent), torch is
 `2.14.0+cpu` with `cuda available: False`, and `transformers`, `accelerate` and
@@ -238,8 +244,10 @@ expected outcome, not a failure, and the write-up should say so in advance
 rather than discover it afterwards. Report the effect size and its confidence
 interval, not a p-value verdict.
 
-This is the main reason to run **both** pairs. Epoch 1 (n=183) reaches 77% power
-at d = 0.20, so it can detect a small effect but carries the weak treatment;
+This was the main reason to run **both** pairs. Epoch 1 (n=183) reaches 77% power
+at d = 0.20 *on paper*, so it looked able to detect a small effect while
+carrying the weak treatment — but that power calculation assumes 183 independent
+families, which section 7f shows it never had;
 epoch 10 (n=29) carries the strong treatment but detects only a large one.
 Agreement in direction across the two is worth more than either alone.
 
@@ -268,6 +276,573 @@ cat $R/B*/error.txt 2>/dev/null | sort | uniq -c | sort -rn | head
 Stage 1 (prompt -> parseable `<nn>`) is `new_nn.py / 29`; stage 2
 (code -> trained) is `eval_info.json / new_nn.py`.
 
+
+## 7a. Pilot results (2026-09-25)
+
+One round of the experimental arm at epoch 10: 29 prompts, then Eval at 3 epochs.
+
+### Yield: 55% end to end, capped by one fixable failure mode
+
+| stage | result |
+|---|---|
+| prompt -> parseable `<nn>` | 28/29 (97%) |
+| code -> trained 3 epochs | 16/28 (57%) |
+| **end to end** | **16/29 (55%)** |
+
+Close to the 61% historical proxy. Accuracy of the 16 that trained: mean 0.6905,
+median 0.7088, max 0.7879, min 0.4190.
+
+The 12 failures:
+
+| count | error |
+|---|---|
+| 5 | `mat1 and mat2 shapes cannot be multiplied` |
+| 2 | `Expected input batch_size to match target batch_size` |
+| 1 | tensor size mismatch at non-singleton dimension |
+| 1 | conv channel mismatch |
+| 1 | missing required function `learn` |
+| 1 | `AttributeError: module has no attribute` |
+| 1 | accuracy too low (0.1) |
+
+**9 of 12 are shape errors**: the model edits an architecture and breaks the
+tensor dimensions. Yield is limited by one dominant, fixable mode rather than
+diffuse noise — a prompt or repair-pass target, and a result in its own right.
+
+**Correction (see 7i): these yield figures are round-level survival, not a
+per-model probability.** The evaluator runs one persistent worker per round, and
+a single model that half-initialises an import kills every model after it in
+that round. Failures are therefore *not* independent events, the binomial
+reasoning used to size the rounds (0.55^2 per family) is optimistic, and an
+arm's yield depends partly on which round drew a poisoning model. In the final
+pooled run the arms ended unequal on exactly this account: **87 trained control
+against 105 experimental**, after control lost a whole round of 28.
+
+### Sizing follows from the yield
+
+A family is paired only if *both* arms produce a trained network for it:
+
+| rounds | P(paired) | expected paired families |
+|---|---|---|
+| 1 | 0.55^2 = 30% | ~9 of 29 |
+| 3 | (1-0.45^3)^2 = 83% | ~24 of 29 |
+
+Three rounds is the minimum that keeps the paired design intact.
+
+### The v2 prompt made copying worse
+
+v1 produced 36% near-copies of the reference, so v2 required at least one
+structural change plus a one-line `<change>` statement. Measured over a full
+round each:
+
+| | v1 | v2 |
+|---|---|---|
+| identical after normalising | 2/28 | **0/29** |
+| similarity >= 0.98 | 7/28 (25%) | 6/29 (21%) |
+| **similarity >= 0.95** | **10/28 (36%)** | 17/29 (59%) |
+| similarity >= 0.90 | 12/28 (43%) | 20/29 (69%) |
+| **median similarity** | **0.880** | **0.959** |
+| median generated length | 2,214 chars | 3,604 chars |
+
+Counterintuitive but consistent: telling the model to *change the reference*
+anchors it **to** the reference. It starts from the reference and makes a small
+edit, where v1 sometimes produced a shorter design written from scratch. v2 did
+eliminate exact duplicates and produced fuller code, but on the metric that
+matters it is a regression. **Both arms use v1.** A future v3 should try a
+different lever (forbid reusing the reference's class structure, or ask for a
+design that addresses a named weakness) rather than demanding "a change".
+
+### Correction: generated networks DO get train_stat
+
+Section 6 previously concluded that diagnostics could not be recorded for
+generated networks because the container image ships a pre-`train_stat`
+`ab.nn`. That no longer holds. The image's `ab.nn` also turned out to be
+unusable for a different reason — it queries a `loader` table this DB does not
+have (`no such table: loader`) — so jobs now shadow the **local nn-dataset
+checkout**, the version that built this DB. `save_train_stat` therefore runs,
+and the DB has train_stat rows for generated networks (verified:
+`train_loss 0.8371`, `train_accuracy 0.7108` at epoch 3). Follow-up analysis of
+how the generated networks trained is available.
+
+### Running the jobs: two environment fixes
+
+1. **Writable `ab/nn`.** `nn_path()` resolves relative to the installed package,
+   so nn-dataset materialises metric/nn/transform code into its own directory,
+   which is root-owned in the image (`PermissionError` on every model). Jobs copy
+   `ab/nn` from the mount into a writable shadow under the run root and set
+   `PYTHONPATH` to it; `stat/` (3.1G) is excluded.
+2. **Per-run output roots.** `AB_GPT_NNGPT_DIR` redirects `nngpt_dir`, so arms
+   run in parallel without the generator's `rmtree` clobbering another arm.
+
+Eval's skip check reads `eval_info.json`, which this path rarely writes (the
+success path validates an artifact first and usually bails); results land in
+per-epoch `<n>.json` files instead. Reconstructing `eval_info.json` from those
+makes relaunches skip completed models. `error.txt` is **not** cleared between
+runs, so it is unreliable as a failure signal — judge success by `<n>.json`.
+
+
+## 7b. Reporting format (fixed before the results were computed)
+
+Written 2026-09-26, after the epoch-10 jobs finished but **before** the paired
+comparison was run, so the framing is not chosen in hindsight.
+
+### The headline
+
+> Experimental minus control, paired over families: **<mean difference>
+> accuracy points, 95% CI [<lo>, <hi>], d_z = <effect size>, n = <paired
+> families> of 29.**
+
+Always reported next to it, in the same breath:
+
+- **Power limit.** 80% power at n=29 needs d = 0.52. A 1-2 point gain is
+  d = 0.12-0.25, i.e. 10-26% power. A positive direction that does not reach
+  significance is the *expected* outcome, not a disappointment.
+- **Yield.** 55% end to end, so each arm contributes ~16 of 29 families per
+  round and the paired set is smaller than 29.
+- **Ceiling.** Hyperparameters explain R^2 = 0.094 of within-family accuracy
+  variance, which bounds what either arm can extract.
+
+### Rules
+
+1. **No significance verdict.** No "significant"/"not significant", no p-value
+   as a verdict. Report the interval and let it speak.
+2. **Effect size always.** Paired d_z alongside the raw difference in accuracy
+   points, so the result is comparable to the power table above.
+3. **A negative result is a result.** If control comes out ahead, that is
+   reported in exactly the same format, with the same caveats. Given the stated
+   limits, the honest reading of a small difference in either direction is
+   "consistent with no effect and with a small effect of either sign".
+4. **The interval is the finding.** A wide interval that includes zero is
+   reported as such, not narrated as a trend.
+5. **Secondary analyses are labelled secondary.** The mechanism split and the
+   failure-rate comparison are exploratory; they are reported with their own
+   intervals and never substituted for the headline if the headline disappoints.
+
+### Pre-specified secondary analyses
+
+- **Failure rate by arm**, with error types. Fewer shape errors in the
+  experimental arm would be diagnostics helping the model write *valid* code —
+  a separate effect from accuracy.
+- **Mechanism split.** In 12 of 29 families the best-fitting configuration is
+  not the best-scoring one; those are where the diagnostics say something
+  accuracy cannot. The paired difference is reported separately for those 12 and
+  for the other 17. If diagnostics help at all, the effect should concentrate in
+  the 12; a difference there and not elsewhere is stronger evidence than a flat
+  average, even with a wide interval. Small subgroups, so intervals will be wide.
+- **Copy rate by arm**, to check that near-copies of the reference distribute
+  evenly and are not carrying one arm.
+
+
+## 7c. Epoch-10 results (2026-09-26)
+
+3 rounds per arm, 87 generations each, evaluated at 3 epochs.
+
+### Headline (pre-registered)
+
+> **Experimental minus control: +1.38 accuracy points, 95% CI [-4.14, +6.91],
+> d_z = +0.108, n = 23 paired families of 29.**
+
+Mean accuracy: control 0.6069, experimental 0.6207. Experimental higher in
+16/23 families.
+
+Alongside, as required by section 7b: 80% power at n=29 needs d_z = 0.52, so at
+d_z = 0.11 this design had roughly 8-10% power; yield 55%; R^2 = 0.094 bounds
+what either arm can extract. No significance verdict. The interval spans zero
+and is about ten times the point estimate: **consistent with no effect and with
+a small effect of either sign**, direction favouring diagnostics.
+
+### Failure rate by arm (pre-specified): a clean null
+
+| | control | experimental |
+|---|---|---|
+| generated | 87 | 87 |
+| produced code | 87 (100%) | 87 (100%) |
+| trained | 55 (63%) | 55 (63%)* |
+| failed | 32 | 32 |
+| **shape-related errors** | **16** | **15** |
+
+Identical. **Diagnostics do not help the model write structurally valid code.**
+
+\* One of the 55 experimental networks stopped at epoch 2 rather than 3, so
+under the strict 3-epoch definition the counts are 55 control against 54
+experimental (63% vs 62%). The analysis uses each model's last recorded epoch.
+
+Note on what "63%" means: it is round-level survival, not a per-model
+probability. Failures within a round are not independent — one model can poison
+the shared worker and take the rest of the round with it (section 7i). Pooled
+over six rounds the arms ended at 87 trained (control) versus 105
+(experimental), the difference being one poisoned control round.
+A pre-specified outcome with a clean negative result, worth stating as such.
+Composition differed without changing the total (control 13 matmul-shape vs
+experimental 9; experimental 5 tensor-size and 3 NameError vs control 0 each).
+
+### Mechanism split (pre-specified, exploratory subgroups)
+
+| subgroup | n | mean diff | 95% CI | d_z | exp higher |
+|---|---|---|---|---|---|
+| diagnostics informative (best-fitting != best-scoring) | 10 | **+2.34 pts** | [-3.08, +7.76] | +0.309 | 8/10 |
+| diagnostics redundant | 13 | +0.65 pts | [-9.00, +10.30] | +0.040 | 8/13 |
+
+The effect **concentrates where predicted** — roughly 3.6x the point estimate
+and 8x the effect size in the informative subgroup. Both intervals span zero and
+the subgroups are tiny, so this is suggestive, not established. It is the
+strongest pattern in the data because it was predicted in advance by the
+mechanism rather than found by searching.
+
+### Copy rate by arm (pre-specified) — DID NOT SURVIVE POOLING
+
+| | first 3 rounds | pooled (6 rounds) |
+|---|---|---|
+| control | 35/87 (40.2%) | 64/172 (**37%**) |
+| experimental | 25/87 (28.7%) | 62/173 (**36%**) |
+| **difference** | **-11.5 pts** [-25.0, +2.6] | **-1 pt** |
+
+On the first three rounds this looked like the notable secondary result: the
+experimental arm appeared to copy the reference 11.5 points less often. **With
+three more rounds per arm it is gone** — 37% versus 36%.
+
+The original interval, [-25.0, +2.6], included zero, and the additional data
+landed on zero. Nothing was mis-measured; a 95% interval that spans zero is
+exactly a statement that the point estimate may be noise, and here it was. This
+is the clearest illustration of why section 7b fixed the reporting rules in
+advance: had the -11.5 been written up as a finding on the strength of its point
+estimate, it would have had to be retracted.
+
+The same fate met the win rate (16/23 = 70% of families favouring experimental
+on the first three rounds, 12/26 = 46% pooled). The two results that collapsed
+are the two that were **not** predicted in advance; the mechanism split, which
+was, is treated in section 7c.
+
+## 7d. Exploratory analyses (NOT pre-registered)
+
+Chosen after the headline was seen. Descriptive intervals; several comparisons
+on one dataset, so they are not confirmatory. Reported including the nulls.
+
+### Copying does not explain the accuracy gain — it works against it
+
+| arm | copies | non-copies | non-copy advantage |
+|---|---|---|---|
+| control | n=32, 0.6446 | n=23, 0.5724 | **-7.22 pts** [-14.14, -0.29] |
+| experimental | n=22, 0.6498 | n=33, 0.6195 | -3.04 pts [-8.83, +2.76] |
+
+**In both arms, near-copies scored higher than novel designs.** That is
+unsurprising — the reference is a proven architecture and the model's own
+designs are usually worse — but it breaks the tempting chain "fewer copies ->
+higher accuracy". The experimental arm reached its small gain *despite* copying
+less, not because of it.
+
+### Excluding copies sharpens the difference
+
+| set | n families | mean diff | 95% CI | d_z |
+|---|---|---|---|---|
+| all generations | 23 | +1.38 pts | [-4.14, +6.91] | +0.108 |
+| **non-copies only** | **14** | **+3.63 pts** | [-3.49, +10.74] | **+0.294** |
+
+Combined with the previous table this suggests a mechanism: control non-copies
+average 0.5724, experimental non-copies 0.6195 — when the model departs from the
+reference, diagnostics may help it depart better.
+
+**Downgrade this result before quoting it.** The 0.95 threshold is arbitrary and
+section 7e shows it is doing the work: the same quantity ranges from +0.70 to
++10.34 across reasonable thresholds, with paired n from 3 to 22. **+3.63 is a
+mid-range point on a continuum, not a stable estimate.** Wide interval at n=14.
+
+**The mechanism split (section 7c) is the stronger result**: it needs no
+arbitrary threshold, and the subgroup was predicted in advance from the 41%
+measurement of families whose best-fitting member is not their best-scoring one.
+Where one of the two has to be quoted, quote that one.
+
+### Nulls
+
+- **Generalisation gap** (`train_accuracy - accuracy`): control +0.0192,
+  experimental +0.0215; difference +0.0022, 95% CI [-0.0042, +0.0086]. No effect.
+- **Convergence** (epoch 1 -> 3): gains +0.1654 vs +0.1600; difference -0.0054,
+  95% CI [-0.0306, +0.0197]. No effect. (Experimental started marginally higher
+  at epoch 1: 0.4717 vs 0.4491.)
+
+### Spread: experimental is tighter
+
+| arm | mean | sd | IQR | min | max |
+|---|---|---|---|---|---|
+| control | 0.6144 | 0.1324 | 0.1619 | 0.1355 | 0.7818 |
+| experimental | 0.6316 | **0.1154** | **0.1183** | **0.1978** | 0.7767 |
+
+Same ceiling, higher floor: the experimental arm produces fewer bad outliers.
+
+### For the write-up: two ways to change the output, opposite effects
+
+Instructing the model to change something **raised** similarity to the reference
+(v2 test: 0.880 -> 0.959 median); showing it training diagnostics **lowered** it
+(full run: control 0.920 -> experimental 0.901). Same goal, opposite directions.
+Note the baselines differ - the v2 figure compares one round of v1 against one
+round of v2, the 0.920/0.901 pair compares arms within the 3-round run - so the
+contrast is directional, not a matched comparison.
+
+
+## 7e. Robustness of the non-copies result: the threshold is doing the work
+
+The 0.95 similarity threshold was arbitrary. Varying it:
+
+| threshold | ctl non-copies | exp non-copies | paired non-copy diff |
+|---|---|---|---|
+| 0.85 | 0.5243 (n=9) | 0.5976 (n=15) | +10.34 [-15.1, +35.8] **n=3** |
+| 0.90 | 0.5432 (n=11) | 0.6149 (n=19) | +8.24 [-6.7, +23.1] **n=4** |
+| **0.95** | **0.5724 (n=23)** | **0.6195 (n=33)** | **+3.63 [-3.5, +10.7] n=14** |
+| 0.98 | 0.6067 (n=43) | 0.6197 (n=46) | +0.70 [-5.5, +6.9] n=20 |
+| 0.99 | 0.6122 (n=53) | 0.6264 (n=52) | +0.83 [-4.8, +6.5] n=22 |
+
+Control non-copies are **not** stable: 0.52 -> 0.61 across thresholds.
+Experimental non-copies are stable at 0.60-0.63. The gap therefore shrinks
+monotonically from 7.3 points to 1.4, and the paired estimate collapses from
++10.34 to +0.83 as the exclusion loosens.
+
+**Direction is robust, magnitude is not.** +3.63 at 0.95 is a mid-range point on
+a continuum, not a stable quantity; at the strict end n falls to 3-4 families.
+There is a coherent dose-response underneath — the more radically the model
+departs from the reference, the larger the experimental advantage — but it rests
+on 9-15 networks, so report it as a pattern, not an effect size. The non-copies
+result should not carry the weight its +3.63 suggests.
+
+### Outlier sensitivity of the headline
+
+| | mean | 95% CI | d_z | median |
+|---|---|---|---|---|
+| all 23 families | +1.38 | [-4.14, +6.91] | +0.108 | **+5.19** |
+| trimmed (drop min and max) | +2.70 | [-0.71, +6.12] | +0.361 | |
+
+One family (`unq-4f03d8f4...`: control 0.696 from 2 runs, experimental 0.252
+from 1 run) is a -44.5 point outlier and pulls the mean well below the median.
+The pre-registered mean stays the headline; the median and trimmed estimate are
+reported as robustness, not substituted for it.
+
+## 7f. Epoch 1 was one architecture lineage, not 183 independent units
+
+**The primary problem with epoch 1 is not its yield — it is that 180 of its 181
+families are GenFractalNet variants.** The family count came from distinct
+(nn, transform) pairs, and those are 180 distinct *hashes* of one generated
+lineage, not 180 independent architectures. Everywhere this document treats
+n = 183 as 183 independent units (sections 4, 5, 7, 7b) that figure should be
+read as ~1 architecture family sampled 183 ways. Epoch 1 therefore could not
+have served as the high-n companion it was chosen to be, regardless of how it
+ran: its effective diversity is closer to 1 than to 183, and a paired test over
+183 near-siblings does not buy the independent observations the power table
+assumed.
+
+The yield failure below is a second, separate finding.
+
+### Generation yield depends strongly on the source architecture family
+
+| arm | source family | generated | trained | yield |
+|---|---|---|---|---|
+| epoch 10 | `unq-*` (29 families) | 87 | 55 | **63%** |
+| epoch 1 | GenFractalNet (180 of 181) | 181 | 6 | **3%** |
+
+`hpf-e1-ctl` crashed mid-run; `hpf-e1-exp` completed with 6 successes and 175
+failures. The failures are concentrated in helper-class structure:
+
+| count | error |
+|---|---|
+| 85 | `Given groups=N, weight of size [...] expected input[...] to have N channels` |
+| 46 | missing required function `learn` |
+| 11 | `KeyError` |
+| 11 | unused hyperparameter |
+| 9 | `IndentationError` after a class definition |
+| 8 | `NameError` (e.g. `FractalBlock` not defined) |
+
+GenFractalNet references define helper classes (`FractalBlock`) and grouped
+convolutions; the model regenerates the main class and drops or mismatches the
+scaffolding. So **generation yield is a property of the source architecture, not
+just of the model or the prompt** — 63% versus 3% between two corpora on the
+same task, dataset and pipeline. As far as we know this has not been measured
+before, and it bears on any LEMUR generation experiment that samples references
+from a mixed corpus.
+
+Consequence for this experiment: the epoch-1 comparison is abandoned rather than
+rescued. Three independent reasons, any one of which is sufficient: the corpus is
+one lineage (above), the treatment is weak by design (diagnostics are a
+near-perfect restatement of accuracy at epoch 1, section 4), and the yield is 3%.
+
+
+## 7g. Evaluation does not parallelise by allocating more GPUs
+
+Allocating 4 GPUs to an Eval job and setting
+`NNGPT_NNEVAL_USE_ALL_VISIBLE_GPUS=1` does **not** parallelise it. Measured on
+`hpf-e10-ctl-r2` (4 GPUs requested, 85 models):
+
+```
+pool_size=1
+per_gpu_worker_counts=[0, 1, 0, 0]
+```
+
+The pool saw all four GPUs and planned **one worker**; three sat idle for the
+whole run. Timings confirm it: generation 15:47 / 15:19 / ~15 min per round
+(~47 min), then ~6.6 h of serial evaluation at ~4.7 min per model — the same
+per-model rate as a single-GPU job. Total 7.4 h against a predicted 2.5 h.
+
+`NNGPT_NNEVAL_USE_ALL_VISIBLE_GPUS` is necessary but not sufficient. The worker
+count is set by a workers-per-GPU planner in
+`ab/gpt/util/nneval_worker_pool.py` (`_worker_count_for_gpu`,
+`min_workers_per_gpu` / `max_workers_per_gpu`) together with
+`NNGPT_NNEVAL_GPU_TOKENS`, which selects the GPU tokens the pool may use.
+
+**The pattern that does work: N single-GPU Eval jobs over disjoint rounds**
+(`--only_epoch 0`, `--only_epoch 1`, ...). Each job is a plain serial evaluator,
+the split is explicit, and with the `eval_info.json` skip shims a job that is
+restarted resumes rather than repeats. Budget ~4.7 min per trained model per
+job and divide the rounds accordingly.
+
+A related caution from the same relaunch: an earlier speedup was attributed to
+the extra GPUs when it actually came from the skip shims carrying over 84 of 174
+already-trained models. Check `pool_size` in the log before assuming a job is
+parallel.
+
+
+## 7h. FINAL pooled results (6 rounds per arm)
+
+Supersedes the 3-round numbers in 7c/7d. Control 87 trained networks,
+experimental 105. One caveat: control's batch-2 round A0 (28 models) is missing —
+see 7i — so control has fewer draws per family than experimental.
+
+### Headline
+
+> **+1.10 accuracy points, 95% CI [-2.11, +4.31], d_z = +0.139, n = 26 of 29
+> paired families.** Control 0.6174, experimental 0.6284. Experimental higher in
+> **12/26 (46%)**.
+
+Against the 3-round read (+1.38 [-4.14, +6.91], 16/23 = 70%): the interval is
+**42% narrower**, the point estimate barely moved, and the win rate fell below
+half. Power, yield and the R^2 ceiling apply as in 7b. No significance verdict.
+
+### What survived pooling and what did not
+
+| result | 3 rounds | 6 rounds | verdict |
+|---|---|---|---|
+| headline difference | +1.38 [-4.1, +6.9] | +1.10 [-2.1, +4.3] | stable, still spans zero |
+| win rate | 16/23 (70%) | 12/26 (46%) | **collapsed** |
+| copy rate difference | -11.5 pts | -1.4 pts [-11.4, +8.7] | **collapsed** |
+| mechanism split (informative - redundant) | 1.69 pts | 1.00 pt | **weakened, order held** |
+| non-copies only | +3.63 (n=14) | +3.80 (n=19) | strengthened, but see 7e |
+| failure-rate null | 16 vs 15 | 25 vs 28 | **null holds** |
+| spread (sd) | 0.132 vs 0.115 | 0.116 vs 0.110 | narrowed, direction held |
+
+The two results that collapsed are the two that were not predicted in advance.
+
+### Mechanism split (the decisive pre-specified secondary)
+
+| subgroup | n | mean diff | 95% CI | d_z | exp higher |
+|---|---|---|---|---|---|
+| diagnostics informative | 12 | +1.64 pts | [-3.67, +6.96] | +0.196 | 7/12 |
+| diagnostics redundant | 14 | +0.64 pts | [-3.90, +5.18] | +0.081 | 5/14 |
+
+**It did not collapse, but it weakened.** The ordering predicted from the 41%
+measurement held — informative above redundant, both positive — but the gap
+between subgroups halved (1.69 -> 1.00 points), the effect-size ratio fell from
+8x to 2.4x, and the informative arm's win rate dropped from 8/10 to 7/12. Both
+intervals comfortably span zero.
+
+Read honestly: the *direction* of the mechanism prediction survived doubling the
+data, which the two unpredicted results did not. The *magnitude* is small and
+indistinguishable from zero at this n. The right claim is "the pattern is
+consistent with the mechanism and did not vanish under more data", not "the
+diagnostics help where predicted".
+
+### Exploratory, pooled
+
+- **Copies still outscore non-copies** in both arms: control -4.80 pts
+  [-9.69, +0.10], experimental -3.30 [-7.50, +0.89]. The reference remains a
+  better architecture than what the model invents.
+- **Non-copies only**: +3.80 [-1.36, +8.96], d_z = +0.355, n=19 — but the
+  threshold sweep now **flips sign at 0.98** (-0.88), so this is not robust; see
+  the updated table in 7e.
+- **Generalisation gap**: -0.0043 [-0.0185, +0.0099]. Null (direction flipped
+  from the 3-round read, which is itself evidence it is noise).
+- **Convergence**: gain -0.0040 [-0.0219, +0.0140]. Null.
+- **Spread**: control sd 0.1161, IQR 0.1376, min 0.1355; experimental sd 0.1100,
+  IQR 0.1165, min 0.1978. Experimental still tighter with a higher floor.
+
+### Updated threshold sweep (pooled)
+
+| threshold | ctl non-copies | exp non-copies | paired diff |
+|---|---|---|---|
+| 0.85 | 0.5715 (n=16) | 0.5892 (n=21) | +5.95 (n=6) |
+| 0.90 | 0.5819 (n=19) | 0.6063 (n=28) | +4.37 (n=8) |
+| 0.95 | 0.6031 (n=38) | 0.6264 (n=54) | +3.80 (n=19) |
+| 0.98 | 0.6244 (n=69) | 0.6251 (n=81) | **-0.88 (n=24)** |
+| 0.99 | 0.6281 (n=83) | 0.6370 (n=96) | +0.92 (n=26) |
+
+Non-monotone with a sign flip: the earlier "dose-response" reading does not
+survive. Threshold choice determines the answer.
+
+## 7i. A persistent worker can be poisoned by one model
+
+Control batch-2 round A0 lost all 28 models to:
+
+```
+AttributeError: partially initialized module 'torchvision' has no attribute
+'extension'   (torchvision/_meta_registrations.py, @register_meta("roi_align"))
+```
+
+The evaluator runs a **persistent serial worker** (`serial_worker_pool`,
+`pool_size=1`, one long-lived pid). Once torchvision's import is left
+half-initialised in that process, every subsequent model in the round fails with
+the same error. A0 was poisoned first, so all 28 failed; the worker was
+recreated for A1 and A2, which then ran normally (13/29 and 19/28).
+
+Two re-run attempts reproduced it exactly — it is deterministic for that round,
+not a transient race. An initial hypothesis that a stray cwd-relative `ab/nn`
+caused it was wrong; that directory is a real nuisance (it shadows the installed
+`ab.nn` and broke two analysis runs, now cleaned up by the job template) but it
+is not this failure.
+
+Practical consequences: check for a single repeated error filling a whole round
+before trusting a yield number, and prefer one Eval job per round so a poisoned
+worker costs one round rather than the run. The 28 models were abandoned.
+
+
+## 7j. Epoch 10 was not optimal, and k>=2 is a real lever
+
+Both are corrections to choices made on incomplete measurement.
+
+### Epoch 20 decouples better than epoch 10 at the same family count
+
+| epoch (k>=3, transform free) | families | mean\|rho\| train_loss | train_accuracy |
+|---|---|---|---|
+| 8 | 26 | 0.750 | 0.791 |
+| **10 (chosen as primary)** | **29** | **0.738** | **0.769** |
+| 12 | 26 | 0.842 | 0.865 |
+| 15 | 29 | 0.802 | 0.785 |
+| **20** | **29** | **0.686** | **0.683** |
+| 50 | 26 | 0.638 | 0.588 |
+
+**Epoch 10 was chosen on a scan of 1, 3, 5, 10, 20, 50 and was not the best
+option available.** Epoch 20 gives the same 29 families with better decoupling
+on both fields. Epoch 50 decouples further still (26 families). Nothing between
+5 and 10 widens the pool: epoch 8 has fewer families and no better decoupling.
+The primary arm should have run at epoch 20.
+
+### k>=2 roughly triples the pool, and at epoch 20 keeps the treatment
+
+Spearman rho cannot be used to judge k=2 families: with two members it is +/-1 by
+construction, so the 0.92-0.95 values in the earlier sweep are an artifact, not
+evidence of redundancy. The right measure is the one that produced the 41%
+figure — how often the best-fitting member is not the best-scoring one.
+
+| configuration | families | argmax disagreement | accuracy gap when they disagree |
+|---|---|---|---|
+| epoch 10, k>=3 (current primary) | 29 | **41%** | median +6.49 pts |
+| epoch 10, k>=2 | 99 | 24% | median +3.87 pts |
+| epoch 15, k>=2 | 98 | 34% | median +4.09 pts |
+| **epoch 20, k>=2** | **98** | **40%** | median +2.79 pts |
+
+**Epoch 20 with k>=2 holds the treatment strength of the current primary (40% vs
+41%) with 3.4x the families.** At n=98 paired families, 80% power arrives at
+d = 0.28 instead of d = 0.52 — still above the d = 0.12-0.25 a 1-2 point gain
+implies, but far closer than the present design. The disagreements are smaller
+when they occur (+2.79 vs +6.49 points), so the treatment is broader but
+shallower.
+
+This is the one remaining design lever. It does not rescue the current result;
+it defines what a better-powered replication would look like.
+
 ## 8. Files (all new; no existing file modified)
 
 | file | role |
@@ -278,6 +853,8 @@ Stage 1 (prompt -> parseable `<nn>`) is `new_nn.py / 29`; stage 2
 | `ab/gpt/conf/prompt/test/NN_gen_hp_family_control_epoch1.json` | `hp_control_e1` (secondary) |
 | `ab/gpt/conf/prompt/test/NN_gen_hp_family_experimental_epoch1.json` | `hp_experimental_e1` (secondary) |
 | `ab/gpt/act/alter/hp_family.py` | generation-only entry point (`--dry-run`) |
+| `ab/gpt/util/hp_family_analysis.py` | pre-registered paired analysis |
+| `ab/gpt/util/hp_family_secondary.py` | exploratory analyses (not pre-registered) |
 
 Within each pair the configs differ in exactly one key,
 `hp_family.show_diagnostics`; prompt bodies and all selection keys are

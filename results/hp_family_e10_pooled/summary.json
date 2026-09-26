@@ -1,0 +1,63 @@
+{
+  "n_paired": 26,
+  "mean_diff": 0.011021602564102567,
+  "ci95": [
+    -0.021088884070466732,
+    0.04313208919867187
+  ],
+  "d_z": 0.13863762538416485,
+  "control": {
+    "dirs": 172,
+    "code": 172,
+    "trained": 87,
+    "failed": 85,
+    "partial": 0
+  },
+  "experimental": {
+    "dirs": 173,
+    "code": 173,
+    "trained": 105,
+    "failed": 68,
+    "partial": 1
+  },
+  "control_errors": {
+    "Exception: The NN code lacks the required function 'X'.": 9,
+    "ValueError: Expected input batch_size (N) to match target batch_size (N).": 3,
+    "TypeError: ReduceLROnPlateau.__init__() got an unexpected keyword argument 'X'": 1,
+    "RuntimeError: matN and matN shapes cannot be multiplied (NxN and NxN)": 21,
+    "RuntimeError: Given groups=N, weight of size [N, N, N, N], expected input[N, N, N, N] to": 6,
+    "FileNotFoundError: [Errno N] No such file or directory: 'X'": 1,
+    "Exception: NN already exists (checksum: NdNccNcNcNaN). Skipping API call.": 2,
+    "Exception: The param 'X' is not used in the code.": 6,
+    "Exception: NN already exists (checksum: NcNfNebNeNfeeNcNd). Skipping API call.": 1,
+    "RuntimeError: one of the variables needed for gradient computation has been modified by ": 1,
+    "Exception: NN already exists (checksum: NcbbNafdNfNcNeNaNccNaNb). Skipping API call.": 1,
+    "AttributeError: partially initialized module 'X' has no attribute 'X' (most likely due t": 25,
+    "Exception: NN already exists (checksum: NcNdNeNdNdcddNbaNfNbN). Skipping API call.": 1,
+    "Exception: NN already exists (checksum: cNddNaNafNaeeNddfN). Skipping API call.": 1,
+    "NameError: name 'X' is not defined": 3,
+    "RuntimeError: The size of tensor a (N) must match the size of tensor b (N) at non-single": 1,
+    "Exception: NN already exists (checksum: NfNffNcNcNcNbNddeN). Skipping API call.": 1,
+    "Exception: NN already exists (checksum: eNfddcNcfNffNfNdNcffNdN). Skipping API call.": 1
+  },
+  "experimental_errors": {
+    "RuntimeError: Given groups=N, weight of size [N, N, N, N], expected input[N, N, N, N] to": 6,
+    "NameError: name 'X' is not defined": 3,
+    "Exception: The param 'X' is not used in the code.": 3,
+    "RuntimeError: The size of tensor a (N) must match the size of tensor b (N) at non-single": 8,
+    "Exception: NN already exists (checksum: NdNfNdNcNdNaNdNc). Skipping API call.": 1,
+    "Exception: The NN code lacks the required function 'X'.": 13,
+    "AccuracyException: (N.N, N, \"Accuracy is too low: N.N. The minimum accepted accuracy for": 2,
+    "RuntimeError: matN and matN shapes cannot be multiplied (NxN and NxN)": 18,
+    "TypeError: empty() received an invalid combination of arguments - got (tuple, dtype=None": 3,
+    "RuntimeError: one of the variables needed for gradient computation has been modified by ": 1,
+    "ValueError: Expected input batch_size (N) to match target batch_size (N).": 2,
+    "KeyError: 'X'": 1,
+    "Exception: NN already exists (checksum: NfNdaNdNaNcN). Skipping API call.": 1,
+    "Exception: NN already exists (checksum: dNaNeeeeNecNbcNfNfbN). Skipping API call.": 2,
+    "Exception: NN already exists (checksum: NeNbNaaccNafcNbbNaNcN). Skipping API call.": 1,
+    "Exception: NN already exists (checksum: NbcbNbbNdNbNdNfNaN). Skipping API call.": 1,
+    "AttributeError: module 'X' has no attribute 'X'": 1,
+    "TypeError: Net._make_layer() missing N required positional argument: 'X'": 1
+  }
+}

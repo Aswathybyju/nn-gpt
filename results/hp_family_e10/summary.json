@@ -1,0 +1,47 @@
+{
+  "n_paired": 23,
+  "mean_diff": 0.013842028985507251,
+  "ci95": [
+    -0.04142155051431833,
+    0.06910560848533284
+  ],
+  "d_z": 0.1083126039074728,
+  "control": {
+    "dirs": 87,
+    "code": 87,
+    "trained": 55,
+    "failed": 32
+  },
+  "experimental": {
+    "dirs": 87,
+    "code": 87,
+    "trained": 55,
+    "failed": 32
+  },
+  "control_errors": {
+    "Exception: The NN code lacks the required function 'X'.": 4,
+    "ValueError: Expected input batch_size (N) to match target batch_size (N).": 3,
+    "TypeError: ReduceLROnPlateau.__init__() got an unexpected keyword argument 'X'": 1,
+    "RuntimeError: matN and matN shapes cannot be multiplied (NxN and NxN)": 13,
+    "RuntimeError: Given groups=N, weight of size [N, N, N, N], expected input[N, N, N, N] to": 4,
+    "FileNotFoundError: [Errno N] No such file or directory: 'X'": 1,
+    "Exception: NN already exists (checksum: NdNccNcNcNaN). Skipping API call.": 1,
+    "Exception: The param 'X' is not used in the code.": 2,
+    "Exception: NN already exists (checksum: NcNfNebNeNfeeNcNd). Skipping API call.": 1,
+    "RuntimeError: one of the variables needed for gradient computation has been modified by ": 1,
+    "Exception: NN already exists (checksum: NcbbNafdNfNcNeNaNccNaNb). Skipping API call.": 1
+  },
+  "experimental_errors": {
+    "RuntimeError: Given groups=N, weight of size [N, N, N, N], expected input[N, N, N, N] to": 3,
+    "NameError: name 'X' is not defined": 3,
+    "Exception: The param 'X' is not used in the code.": 2,
+    "RuntimeError: The size of tensor a (N) must match the size of tensor b (N) at non-single": 5,
+    "Exception: NN already exists (checksum: NdNfNdNcNdNaNdNc). Skipping API call.": 1,
+    "Exception: The NN code lacks the required function 'X'.": 5,
+    "AccuracyException: (N.N, N, \"Accuracy is too low: N.N. The minimum accepted accuracy for": 1,
+    "RuntimeError: matN and matN shapes cannot be multiplied (NxN and NxN)": 9,
+    "TypeError: empty() received an invalid combination of arguments - got (tuple, dtype=None": 1,
+    "RuntimeError: one of the variables needed for gradient computation has been modified by ": 1,
+    "ValueError: Expected input batch_size (N) to match target batch_size (N).": 1
+  }
+}

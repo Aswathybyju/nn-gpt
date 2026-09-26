@@ -21,7 +21,7 @@
               "-c"
             ],
             "args": [
-              "cd /a/mm && mkdir -p /a/mm/out && export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && python3 -u -m ab.gpt.act.eval.Eval --nn_train_epochs 3 --only_epoch 0 --nn_name_prefix hpf-exp-pilot 2>&1 | tee -a /a/mm/out/hpf-pilot-eval.log"
+              "cd /a/mm && mkdir -p /a/mm/out && export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && SRC=$(python3 -c 'import ab.nn,os;print(os.path.dirname(ab.nn.__file__))') && rm -rf /a/mm/out/abnn && mkdir -p /a/mm/out/abnn/ab && cp -r $SRC /a/mm/out/abnn/ab/nn && mkdir -p /a/mm/out/abnn/ab/nn/nn /a/mm/out/abnn/ab/nn/metric /a/mm/out/abnn/ab/nn/transform /a/mm/out/abnn/ab/nn/stat && export PYTHONPATH=/a/mm/out/abnn && python3 -u -m ab.gpt.act.eval.Eval --nn_train_epochs 3 --only_epoch 0 --nn_name_prefix hpf-exp-pilot 2>&1 | tee -a /a/mm/out/hpf-pilot-eval.log"
             ],
             "env": [
               {

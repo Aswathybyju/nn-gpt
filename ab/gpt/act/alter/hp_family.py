@@ -44,6 +44,8 @@ from ab.gpt.util.hp_family import (
 ARM_CONF = {
     'control': ('NN_gen_hp_family_control.json', 'hp_control'),
     'experimental': ('NN_gen_hp_family_experimental.json', 'hp_experimental'),
+    'control-v2': ('NN_gen_hp_family_control_v2.json', 'hp_control_v2'),
+    'experimental-v2': ('NN_gen_hp_family_experimental_v2.json', 'hp_experimental_v2'),
     'control-e1': ('NN_gen_hp_family_control_epoch1.json', 'hp_control_e1'),
     'experimental-e1': ('NN_gen_hp_family_experimental_epoch1.json', 'hp_experimental_e1'),
 }

@@ -1,0 +1,34 @@
+{
+  "verified_at": "2026-09-26T14:28:06+00:00",
+  "db_rows_train_stat": 326501,
+  "informative_families": {
+    "families": 29,
+    "disagreeing": 12,
+    "rate": 0.41379310344827586,
+    "gap_median_pts": 6.485000000000002,
+    "gap_max_pts": 16.600000000000005,
+    "family_names": [
+      "unq-0003f2a58daeebff23afc88eb0cfe5dc",
+      "unq-337810518421ef04bf30da9be11b7c4e",
+      "unq-38783aaf731c2428d1097be9d9ee0ecf",
+      "unq-390e94415c83e12cb7dfdf82c0b62560",
+      "unq-4fb3b51abee89f2da1e63631a5bd4e29",
+      "unq-74c9901b69ca0849f7348045552810f2",
+      "unq-7c2998105eb8f45d71a38d8fac803142",
+      "unq-9e85ea4ba6b941881f17a6778eba244f",
+      "unq-b70a673e8a8d81e6640a3f2355fb449d",
+      "unq-d621c528e821d1d87bde74762a24d887",
+      "unq-f78f73ef21949ab8a1554e4575a75371",
+      "unq-fdb62040fc1a41621322feeddbc3d784"
+    ],
+    "matches_mechanism_split_set": true
+  },
+  "within_family_r2": {
+    "r2": 0.09389616152135716,
+    "families": 183,
+    "members": 737,
+    "beta_log10lr": -0.045532898996681025,
+    "beta_momentum": -0.05184606724479552,
+    "beta_log2batch": -0.03744644353017425
+  }
+}

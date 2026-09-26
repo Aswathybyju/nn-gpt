@@ -1,0 +1,97 @@
+{
+  "hp_control_v2": {
+    "comment": [
+      "One CIFAR-10 architecture shown under k distinct training configurations.",
+      "epoch=10, group_by_transform=False, >=3 settings, lr range >= 2x,",
+      "grouped on hyperparameter VALUES (never prm uid).",
+      "Control and experimental differ ONLY in hp_family.show_diagnostics.",
+      "PRIMARY: epoch 10, grouped by architecture alone (each member carries its own transform); 29 families. Diagnostics decouple from accuracy here - within-family mean|rho| 0.74 train_loss, 0.77 train_accuracy, versus 0.93/0.96 at epoch 1.",
+      "The prompt asks for the architecture ONLY. Eval overrides any proposed hyperparameters and transform with dataframe.df's prm, so training settings are held fixed across both arms by design: an accuracy difference is attributable to the architecture.",
+      "test_loss is excluded from diagnostic_fields: within-family rho with accuracy is 0.913 even at epoch 10, so it is redundant with the accuracy both arms already show.",
+      "v2 prompt: requires at least one structural change and a one-line <change> statement. v1 produced 36% near-copies of the reference (normalised similarity >= 0.95)."
+    ],
+    "task": "img-classification",
+    "dataset": "cifar-10",
+    "metric": "acc",
+    "hp_family": {
+      "epoch": 10,
+      "group_by_transform": false,
+      "min_settings": 3,
+      "max_members": 4,
+      "min_lr_ratio": 2.0,
+      "diagnostic_fields": [
+        "train_loss",
+        "train_accuracy"
+      ],
+      "show_diagnostics": false,
+      "show_member_accuracy": true,
+      "nn_prefixes": [],
+      "max_families": null
+    },
+    "input_list": [
+      {
+        "para": "nn",
+        "value": "nn"
+      },
+      {
+        "para": "nn_code",
+        "value": "nn_code"
+      }
+    ],
+    "system": [
+      "You are an expert PyTorch neural network architect.",
+      "Output a complete, runnable Python class named 'Net' with all required LEMUR interface methods."
+    ],
+    "prompt": [
+      "Task: Generate a new CIFAR-10 image-classification model.",
+      "",
+      "=== REFERENCE ARCHITECTURE ({nn}) ===",
+      "<nn>",
+      "{nn_code}",
+      "</nn>",
+      "",
+      "=== THE SAME ARCHITECTURE UNDER SEVERAL TRAINING CONFIGURATIONS ===",
+      "The model code above is identical in every configuration below. Each one",
+      "used its own training hyperparameters and its own augmentation transform,",
+      "both shown with it.",
+      "",
+      "{hp_family_prompt}",
+      "",
+      "=== YOUR TASK ===",
+      "Propose a NEW model architecture for this task - not a copy of the reference.",
+      "Reason from how the configurations above behaved: how this architecture",
+      "responds to a high learning rate, whether it overfits easily, where it is",
+      "limited. Then change the architecture to address what you found.",
+      "",
+      "Your answer MUST make at least one structural change to the reference:",
+      "add, remove, resize or reorder layers; change a block type; change the",
+      "classifier head; add or remove normalisation, residual connections or",
+      "dropout. Returning the reference with only renamed variables, reformatted",
+      "code or altered comments does not count as a change.",
+      "",
+      "Training settings are fixed by the evaluation harness and are NOT yours to",
+      "choose: do not propose hyperparameters or a transform. Only the",
+      "architecture is yours.",
+      "",
+      "Keep the LEMUR interface: class 'Net' with __init__, forward,",
+      "train_setup(prm), learn(train_data) and a module-level",
+      "supported_hyperparameters().",
+      "",
+      "=== OUTPUT FORMAT ===",
+      "Generate exactly two XML tags and nothing else:",
+      "",
+      "<change>",
+      "one line naming the structural change you made and the behaviour above that motivated it",
+      "</change>",
+      "",
+      "<nn>",
+      "...complete Python code for class Net...",
+      "</nn>",
+      "",
+      "=== CRITICAL RULES ===",
+      "- Output the complete model code inside <nn> tags",
+      "- Works with 32x32 RGB images and 10 classes",
+      "- The <change> line is the only prose; do not explain further"
+    ]
+  }
+}

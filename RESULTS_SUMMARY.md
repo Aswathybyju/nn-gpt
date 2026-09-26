@@ -39,6 +39,29 @@ fine-tuning. Generated networks are trained for 3 epochs and compared.
 (87 control, 104 experimental); one further experimental network stopped at
 epoch 2 and is included at its epoch-2 accuracy.
 
+### Why only two diagnostics
+
+`train_stat` has 17 fields. Two are shown because **they subsume the rest**, not
+because the others were assumed useless.
+
+`gradient_norm` is the instructive case. Within a family it explains **R² = 0.16
+at epoch 10 and 0.24 at epoch 20 on its own**, and the configuration with the
+lowest gradient norm differs from the best-scoring one in 52-55% of families —
+well below the 69% rate a pure-noise field would produce. It carries real
+information. But added on top of `train_loss` and `train_accuracy` it contributes
+**+0.012 R² at epoch 10 and +0.000 at epoch 20**. It is redundant in context.
+
+`test_loss` is a monotone restatement of the test accuracy already shown for
+every member (it picks a different best member in only 14-21% of families).
+`samples_per_second` adds +0.001 / +0.005 and is hardware-confounded — 37% of
+families mix RTX 3090 and 4090. `epoch_max` is absent from 93% of candidate rows.
+
+An earlier version of this screening used marginal correlation with accuracy,
+which is the wrong quantity: it pools across architectures and cannot see
+non-monotone structure. That criterion understated `gradient_norm`; the
+conclusion happened to survive re-screening, the reasoning did not. Detail in
+`TRAIN_STAT_PLAN.md` sections 3 and 7k.
+
 ## Headline
 
 > **Experimental minus control: +1.10 accuracy points, 95% CI [-2.11, +4.31],
@@ -83,8 +106,16 @@ epoch 10 the same relaxation would drop it to 24%). The disagreements are
 shallower when they occur (+2.79 against +6.49 points), so the treatment is
 broader but weaker.
 
-This does not change the conclusion below. It is what would be needed to decide
-the question rather than bound it.
+**A second question it would answer.** At n = 98 a third arm can test *which*
+diagnostics matter — `train_loss` + `train_accuracy` + `gradient_norm` against
+the two-field arm. `gradient_norm` is informative alone but redundant in a
+regression that already has the other two; whether that also holds for a
+language model reading the numbers as text is untested, and n = 29 cannot
+resolve it because differences between field sets are smaller than the
+treatment-control difference, which is already indistinguishable from zero.
+
+Neither question changes the conclusion below. This is what would be needed to
+decide them rather than bound them.
 
 ## What survived more data, and what did not
 

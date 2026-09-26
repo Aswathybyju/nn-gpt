@@ -49,9 +49,43 @@ partition key, or a 50-epoch row can appear beside 1-epoch rows.
 Shown: **`train_loss`, `train_accuracy`** — config-driven via
 `hp_family.diagnostic_fields`, so a field ablation is a config change.
 
-| excluded | evidence |
+### The original screening criterion was wrong
+
+Fields were first excluded on Spearman correlation with accuracy. **That was the
+wrong quantity and the wrong measurement.** For `gradient_norm` the figure used
+was r = -0.13, which is *marginal* (pooled across architectures, so dominated by
+between-architecture variation), computed *at epoch 5*, and *monotone-only* (a
+correlation cannot see a U-shape). The relevant quantity is the within-family
+association at the epoch actually used.
+
+Re-screened properly (7k), `gradient_norm` explains **R^2 = 0.163 at epoch 10 and
+0.241 at epoch 20 within families on its own**, and its within-family argmax
+disagreement (52-55%) sits well below the 69% chance baseline. It carries real
+information; the criterion that excluded it said otherwise.
+
+**The exclusion survives on different grounds:** added to `train_loss` and
+`train_accuracy` it contributes +0.012 R^2 at epoch 10 and +0.000 at epoch 20.
+It is subsumed by what is already shown, not devoid of signal. The table below
+gives the corrected reasons.
+
+### What looked real and did not survive
+
+Two apparent findings from the re-screen dissolved under the within-family test:
+a **U-shaped** marginal relation between `gradient_norm` and accuracy (0.707,
+0.595, 0.601, 0.663, 0.711 across epoch-20 quintiles), and a **sign-flipping
+interaction** with `train_loss` (-3.11 points when loss is low, +5.88 when it is
+high). With architecture held fixed the interaction term is worth +0.000 R^2 and
+the correlation is negative in both strata with no flip. Both were
+between-architecture confounds.
+
+This is the same lesson as the copy-rate collapse (7c): a pattern that looks
+clear in the margin can be an artifact of what varies between groups rather than
+within them. The check that caught it — holding the family fixed — is the same
+check the paired design applies to the main result.
+
+| excluded | reason (corrected) |
 |---|---|
-| `gradient_norm` | r = -0.13 with final accuracy (1,573 curves) |
+| `gradient_norm` | subsumed by `train_loss` + `train_accuracy` (+0.012 / +0.000 R^2). Informative alone (R^2 0.16-0.24); the original r = -0.13 criterion was inadequate |
 | `epoch_max` | non-NULL in 7.2% of candidate rows |
 | `samples_per_second` | 37% of families mix RTX 4090 and RTX 3090 |
 | `test_loss` | within-family rho with accuracy 0.913 even at epoch 10 — redundant with the accuracy both arms already show |
@@ -842,6 +876,105 @@ shallower.
 
 This is the one remaining design lever. It does not rescue the current result;
 it defines what a better-powered replication would look like.
+
+### A second question the replication should answer: the field ablation
+
+At n = 98 the design can also test *which* diagnostics matter, which n = 29
+cannot: differences between field sets are necessarily smaller than the
+treatment-control difference, and that is already indistinguishable from zero.
+
+Three arms, identical but for `hp_family.diagnostic_fields` (a config value, so
+no code changes):
+
+| arm | fields | question |
+|---|---|---|
+| control | none | baseline |
+| primary | `train_loss`, `train_accuracy` | the current treatment |
+| + gradient | `train_loss`, `train_accuracy`, `gradient_norm` | does a field that is informative alone but redundant in regression (7k) still help a language model, which does not fit a regression? |
+
+The third arm is the interesting one. The +0.012 R^2 increment says
+`gradient_norm` adds nothing *to a linear model that already has the other two*.
+It does not follow that it adds nothing to an LLM reading the numbers as text,
+and 7k's caveat (102 members, increment within noise) leaves the question open.
+
+
+## 7k. The field-exclusion criterion was inadequate (the decision survives)
+
+Fields were excluded on Spearman correlation with accuracy, which only detects
+monotone relationships. Re-screened three ways on epoch-10 and epoch-20 rows.
+
+### 1. Non-monotone shape (mean accuracy by quintile)
+
+| field | epoch 20 quintiles (low -> high) | shape |
+|---|---|---|
+| `gradient_norm` | 0.707  0.595  0.601  0.663  0.711 | **U-shaped** |
+| `samples_per_second` | 0.686  0.728  0.667  0.620  0.577 | inverted-U at the low end |
+| `train_loss` | 0.809  0.802  0.734  0.558  0.374 | monotone |
+| `test_loss` | 0.834  0.778  0.696  0.572  0.397 | monotone |
+
+`gradient_norm` is **not** monotone in the margin: both extremes score ~0.71
+while the middle dips to ~0.60. A correlation coefficient reports that as
+approximately nothing, exactly the failure mode anticipated.
+
+### 2. The interaction does not survive within families
+
+Marginally, `gradient_norm` appears to flip sign on `train_loss`:
+
+| | low gradient | high gradient | difference |
+|---|---|---|---|
+| low `train_loss` (epoch 10) | 0.789 | 0.758 | -3.11 pts |
+| high `train_loss` (epoch 10) | 0.448 | 0.507 | **+5.88 pts** |
+
+But with architecture held fixed (family-demeaned OLS, 29 families, 102
+members), the interaction term is +0.0006 at epoch 10 and +0.0024 at epoch 20,
+worth +0.000 and +0.010 R^2. Within-family correlation is negative in *both*
+strata (-0.27 / -0.55 at epoch 10) with no sign flip. **The marginal interaction
+is a between-architecture confound**, and so is the U-shape above.
+
+### 3. Within-family argmax disagreement, against a chance baseline
+
+The 41% figure needs a reference: a pure-noise field with k members disagrees
+1 - 1/k of the time, which is ~69% here. Below that is evidence of information.
+
+| field (direction) | epoch 10 | epoch 20 | reading |
+|---|---|---|---|
+| `train_accuracy` (max) | 41% | 48% | informative (shown) |
+| `train_loss` (min) | 48% | 41% | informative (shown) |
+| `test_loss` (min) | 14% | 21% | near-duplicate of accuracy |
+| **`gradient_norm` (min)** | **52%** | **55%** | **informative, below chance** |
+| `samples_per_second` (min) | 45% | 55% | informative, below chance |
+
+### Verdict: right decision, wrong reason
+
+`gradient_norm` carries real within-family signal — **R^2 = 0.163 (epoch 10) and
+0.241 (epoch 20) on its own** — far more than the marginal r = -0.13 at epoch 5
+that justified excluding it. That criterion was measured on the wrong quantity
+(across architectures, at a different epoch) and understated the field.
+
+But added to the fields already shown, it contributes almost nothing:
+
+| added to `train_loss` + `train_accuracy` | epoch 10 | epoch 20 |
+|---|---|---|
+| baseline R^2 | 0.874 | 0.813 |
+| + `gradient_norm` | +0.012 | +0.000 |
+| + `samples_per_second` | +0.001 | +0.005 |
+| + `test_loss` | +0.112 | +0.147 |
+
+**`gradient_norm` is redundant in context, not uninformative in itself.** The
+exclusion stands; the stated reason ("no signal") was wrong and should be
+"subsumed by train_loss and train_accuracy".
+
+`test_loss` is the largest incremental contributor, but that is not a reason to
+add it: it is a monotone restatement of the test accuracy the prompt already
+shows for every member (argmax disagreement 14-21%). Its high R^2 is the outcome
+re-entering the model, not new information.
+
+`samples_per_second` adds nothing here and remains hardware-confounded (37% of
+families mix RTX 3090 and 4090).
+
+Caveat: 102 members across 29 families. An R^2 gain of +0.012 is within noise at
+this size; the claim supported is "no evidence of a useful increment", not "zero
+increment". The proper test belongs in the epoch-20, n=98 replication (7j).
 
 ## 8. Files (all new; no existing file modified)
 

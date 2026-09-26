@@ -48,3 +48,4 @@ stats/*.json
 cycle_results.json
 eval_info.json
 source_recipe_delta.json
+.hf/

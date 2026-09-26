@@ -1,0 +1,106 @@
+{
+  "cifar-10_e10": {
+    "k3": 29,
+    "k2": 99,
+    "disagree": 12,
+    "median_gap": 0.06485000000000002,
+    "prefixes": {
+      "unq": 29
+    }
+  },
+  "cifar-10_e20": {
+    "k3": 29,
+    "k2": 98,
+    "disagree": 14,
+    "median_gap": 0.06795000000000001,
+    "prefixes": {
+      "unq": 29
+    }
+  },
+  "cifar-100_e10": {
+    "k3": 1,
+    "k2": 5,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {
+      "AirNext": 1
+    }
+  },
+  "cifar-100_e20": {
+    "k3": 1,
+    "k2": 4,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {
+      "AirNext": 1
+    }
+  },
+  "svhn_e10": {
+    "k3": 0,
+    "k2": 3,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {}
+  },
+  "svhn_e20": {
+    "k3": 0,
+    "k2": 1,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {}
+  },
+  "imagenette_e10": {
+    "k3": 2,
+    "k2": 22,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {
+      "AirNext": 1,
+      "UNet": 1
+    }
+  },
+  "imagenette_e20": {
+    "k3": 2,
+    "k2": 21,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {
+      "AirNext": 1,
+      "UNet": 1
+    }
+  },
+  "mnist_e10": {
+    "k3": 2,
+    "k2": 9,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {
+      "AirNext": 1,
+      "UNet": 1
+    }
+  },
+  "mnist_e20": {
+    "k3": 2,
+    "k2": 8,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {
+      "AirNext": 1,
+      "UNet": 1
+    }
+  },
+  "celeba-gender_e10": {
+    "k3": 0,
+    "k2": 1,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {}
+  },
+  "celeba-gender_e20": {
+    "k3": 0,
+    "k2": 1,
+    "disagree": 0,
+    "median_gap": null,
+    "prefixes": {}
+  }
+}

@@ -976,6 +976,95 @@ Caveat: 102 members across 29 families. An R^2 gain of +0.012 is within noise at
 this size; the claim supported is "no evidence of a useful increment", not "zero
 increment". The proper test belongs in the epoch-20, n=98 replication (7j).
 
+
+## 7l. No other dataset has a usable family pool
+
+CIFAR-10 was chosen because it was specified, not because the alternatives were
+measured. They have now been measured, and CIFAR-10 turns out to be effectively
+the only option.
+
+### train_stat coverage by dataset
+
+| task | dataset | metric | stat rows | with train_stat |
+|---|---|---|---|---|
+| img-classification | cifar-10 | acc | 302,132 | **139,663** |
+| img-classification | cifar-100 | acc | 120,774 | 47,804 |
+| img-classification | svhn | acc | 130,802 | 40,275 |
+| img-classification | imagenette | acc | 113,468 | 39,346 |
+| img-classification | mnist | acc | 113,858 | 32,409 |
+| img-classification | celeba-gender | acc | 75,467 | 15,998 |
+| img-super-resolution | div2k | psnr | 7,274 | 7,274 |
+| img-denoising | denoise | psnr | 6,494 | 2,730 |
+| coco (seg/det), places365 | | | | < 500 |
+| coco captioning, wikitext, txt-image | | | 0 | **0** |
+
+Coverage follows the instrumentation timeline: only runs recorded after
+per-epoch `train_stat` landed carry diagnostics.
+
+### Families, same definition as CIFAR-10
+
+One architecture, one fixed epoch, k distinct `(lr, momentum, batch)` **values**
+(never `prm` uid), `train_stat` present on every member, `max(lr)/min(lr) >= 2`.
+
+| dataset | epoch | k>=3 | k>=2 | disagreement (k>=3) | median gap | distinct architectures |
+|---|---|---|---|---|---|---|
+| **cifar-10** | 10 | **29** | 99 | **12/29 = 41%** | +0.0649 | 29 |
+| **cifar-10** | 20 | **29** | 98 | **14/29 = 48%** | +0.0680 | 29 |
+| cifar-100 | 10 / 20 | 1 / 1 | 5 / 4 | 0/1 | – | 1 |
+| svhn | 10 / 20 | 0 / 0 | 3 / 1 | – | – | – |
+| imagenette | 10 / 20 | 2 / 2 | 22 / 21 | 0/2 | – | 2 |
+| mnist | 10 / 20 | 2 / 2 | 9 / 8 | 0/2 | – | 2 |
+| celeba-gender | 10 / 20 | 0 / 0 | 1 / 1 | – | – | – |
+| div2k, denoise | – | 0 | 0 | – | – | `train_stat` only at epochs 1-7 |
+
+**CIFAR-10 has 29 families; the next best has 2.**
+
+### CIFAR-10's diversity is real (unlike epoch 1's)
+
+All 29 share the `unq` prefix — the same surface signature that made the epoch-1
+pool suspect. The code says they are genuinely different architectures:
+
+| pool | median pairwise similarity | pairs >= 0.95 |
+|---|---|---|
+| **cifar-10 epoch 10 (29 families)** | **0.610** | **7%** |
+| epoch-1 GenFractalNet (25 sampled) | 0.867 | 47% |
+
+p10 similarity is 0.206 and normalised code length runs 1,447-3,250 characters.
+A shared prefix is not a shared lineage; the check has to be on the code.
+
+### The only alternative worth naming
+
+At k>=2, **imagenette has 22 families** with 27% disagreement at epoch 10
+(chance 52%) and median pairwise similarity 0.356 — real diversity. It is the
+only non-CIFAR pool above trivial size, but 22 is fewer than the current 29, so
+it adds no power. Its value would be as a **replication on a second dataset**,
+which is a different argument from extending the sample.
+
+Note the k>=2 caveat for CIFAR-10 itself: disagreement falls to 24% at epoch 10
+with two-member families, but **holds at 40% at epoch 20** — which is why the
+replication design (7j) specifies epoch 20 rather than 10.
+
+### Pooling across datasets
+
+Raw accuracies are not comparable: MNIST sits near a ceiling, CIFAR-10
+mid-range, psnr is a different unit entirely. A naive merge would be dominated
+by between-dataset variation.
+
+**The paired design is structurally immune to the level problem** — the unit is
+the within-family difference between arms for the same architecture on the same
+dataset, so dataset level cancels before the test sees it. What does not cancel
+is **scale**: one accuracy point near a ceiling is not one point mid-range.
+Pooling raw point-differences would therefore still be wrong; pooling
+*standardised* per-family differences (each divided by that dataset's
+within-family sd, i.e. the quantity `d_z` already expresses) is valid.
+
+So the design survives with per-dataset standardisation. Empirically the
+question is moot: with 29 families against 2, there is no second dataset to pool
+with. The available levers remain epoch 20 with k>=2 inside CIFAR-10 (7j), or
+generating new multi-setting runs.
+
+Raw output: `results/verification/dataset_family_survey.json`.
+
 ## 8. Files (all new; no existing file modified)
 
 | file | role |

@@ -1,7 +1,6 @@
 # Hyperparameter-family generation experiment — plan and measurements
 
-Written for: the author of this experiment and anyone reviewing it.
-Status 2026-09-21. Supersedes the earlier delta / fine-tuning plan.
+Status 2026-09-21. 
 
 All numbers measured against the real LEMUR DB (`nn-gpt/db/ab.nn.db`,
 ~1.01M `stat` rows, 325,846 `train_stat` rows).

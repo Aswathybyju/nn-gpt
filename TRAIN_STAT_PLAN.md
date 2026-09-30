@@ -1168,6 +1168,85 @@ suspiciously perfect fit should be read as a collinearity warning rather than a
 result. The paired design applies this discipline to the main outcome; these
 three cases show it is equally needed for every supporting claim.
 
+
+## 7o. Trajectories do not rescue the mechanism either
+
+The snapshot tests (7m) used one number per setting at a fixed epoch. A
+trajectory is a different object — two settings can show the same gap at epoch
+10 while one is still improving and the other has plateaued. The corpus already
+holds 50-epoch curves, so this was free to test.
+
+**25 of 29 families** have dense trajectories for every member (>= 40 epochs,
+reaching >= 45); 89 members, median k = 3, chance of picking the best by
+guessing 30%.
+
+### Divergence onset and plateau measure distance, not direction
+
+`onset(theta)` = the first epoch from which the train-test gap stays above
+theta. `plateau` = the first epoch reaching 99% of that member's best accuracy.
+
+| feature | corr with signed log10(lr/lr_best) | corr with \|distance\| | lr above best | lr below best |
+|---|---|---|---|---|
+| `onset` (0.05) | -0.281 | **+0.595** | median epoch 8.5 | 5.0 |
+| `onset` (0.02) | -0.181 | +0.367 | 4.0 | 3.0 |
+| `onset` (0.10) | +0.236 | +0.484 | 14.5 | 7.0 |
+| `plateau` | -0.161 | +0.393 | 34.0 | 35.0 |
+
+The signed correlations are weak and inconsistent in sign across thresholds; the
+distance correlations are strong and consistent. **This is the same conclusion
+as the snapshot tests, reached from a richer object: the diagnostics encode how
+far a setting is from optimal, not which way to move.**
+
+### The distance relationship is real — it survives the 7n control
+
+Applying the rule from 7n, the strongest number here was re-computed
+family-demeaned rather than pooled:
+
+| | pooled | family-demeaned |
+|---|---|---|
+| `onset(0.05)` vs \|distance from best lr\| | +0.595 | **+0.540** |
+| `plateau` vs \|distance from best lr\| | +0.393 | **+0.439** |
+
+**This is the first pattern in the project to survive that check.** Divergence
+onset genuinely tracks how far a setting sits from its family's best learning
+rate, within the family. It is a real property of the data — it is simply not
+the property the experiment needs.
+
+### Trajectory shape does not identify the best member
+
+| rule (chance ~30%) | hit rate |
+|---|---|
+| latest divergence onset | 7/22 = **32%** |
+| latest plateau | 3/25 = 12% |
+| steepest slope 5->10 | 6/25 = 24% |
+| *highest accuracy at epoch 10 (not a trajectory feature)* | *19/25 = 76%* |
+
+### Nor does it predict the epoch-50 winner better than accuracy
+
+Using only epochs <= 10:
+
+| rule | predicts the epoch-50 winner |
+|---|---|
+| **accuracy at epoch 10 (baseline)** | **19/25 = 76%** |
+| latest divergence onset | 10/25 = 40% |
+| steepest slope 5->10 | 6/25 = 24% |
+| latest plateau | 3/25 = 12% |
+
+Epoch-10 accuracy is a strong early predictor of the epoch-50 outcome, and no
+trajectory feature approaches it. Accuracy is already shown in both arms, so
+the trajectory adds nothing a control prompt lacks.
+
+### Consequence
+
+Option A (multi-epoch trajectories in the prompt) is viable on coverage — 28/29
+families have epochs 1, 3, 5, 10 for every member, and the median member has all
+50 — but it has **no mechanism**. Option B (generating a fresh 50-trial search)
+fixes the headroom problem from 7m but not this one: a new search gives the model
+something real to beat, it does not give the diagnostics something to say.
+
+Measured before spending the 40-141 GPU-hours Option B would cost.
+Raw output: `results/verification/trajectory_mechanism.json`.
+
 ## 8. Files (all new; no existing file modified)
 
 | file | role |

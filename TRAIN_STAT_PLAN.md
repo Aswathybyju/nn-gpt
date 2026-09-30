@@ -1,6 +1,6 @@
 # Hyperparameter-family generation experiment — plan and measurements
 
-Status 2026-09-21. 
+Status 2026-09-30.
 
 All numbers measured against the real LEMUR DB (`nn-gpt/db/ab.nn.db`,
 ~1.01M `stat` rows, 325,846 `train_stat` rows).
@@ -1145,9 +1145,13 @@ interpolation mechanism requires localisation, so it is not available here.
 
 ### Attribution limit on `transform`
 
-`transform` cannot be credited or discounted from this corpus: **29/29 families
-have exactly as many distinct transforms as members**, so one-hot transform is a
-row identifier and yields R^2 = 1.000 by construction. Among the estimable
+`transform` cannot be credited or discounted from this corpus. Across the 102
+epoch-10 members there are 76 distinct transform names, and 18 of those names
+are reused **across** families — but **within every one of the 29 families there
+is exactly one transform per member** (29/29). It is that within-family
+uniqueness that matters: one-hot transform becomes a member identifier inside
+the unit of analysis, so the model saturates and returns R^2 = 1.000 by
+construction, regardless of the global count. Among the estimable
 factors, within family: log10(lr) 0.36, log2(batch) 0.12-0.15, momentum 0.00.
 
 ## 7n. Recurring hazard: marginal patterns in this corpus dissolve under control
@@ -1159,7 +1163,7 @@ held fixed:
 |---|---|---|
 | experimental arm copies the reference less | -11.5 points | three more rounds: -1.4 points (7c) |
 | `gradient_norm` U-shape and its interaction with `train_loss` | +5.88 points at high loss | holding the family fixed: interaction +0.000 R^2 (7k) |
-| `transform` explains nearly all within-family accuracy | R^2 = 1.000 | 76 distinct transforms over 102 settings — a row identifier (7m) |
+| `transform` explains nearly all within-family accuracy | R^2 = 1.000 | one transform per member *within every family* (29/29), so one-hot is a member identifier (7m) |
 
 The corpus invites this: architectures differ enormously, families are small,
 and several fields are near-unique per row. **Any marginal statistic here should
@@ -1246,6 +1250,55 @@ something real to beat, it does not give the diagnostics something to say.
 
 Measured before spending the 40-141 GPU-hours Option B would cost.
 Raw output: `results/verification/trajectory_mechanism.json`.
+
+
+## 7p. What train_stat actually contains: proximity, not direction
+
+Three independent measurements now converge on one characterisation, and it is
+the conclusion a reader should leave with.
+
+| measurement | result | what it shows |
+|---|---|---|
+| snapshot gap vs distance from the best lr (7m) | **-0.46** | a large train-test gap means a setting is *close* to optimal |
+| divergence onset vs distance, family-demeaned (7o) | **+0.540** | trajectories track distance from optimal, and this survives the 7n control |
+| trajectory shape identifying the best member (7o) | **32%** vs 30% chance | shape does not say *which* setting is best |
+
+They differ in object (single number vs 50-epoch curve), in epoch (10, 20, and
+1-50), and in method (correlation, family-demeaned correlation, selection
+accuracy against a chance baseline). They agree:
+
+> **The diagnostics encode proximity to optimal, not direction toward it.**
+
+A setting far from the best learning rate underfits, so its gap is small and its
+divergence is late; a setting near the best fits hard, so its gap is large and
+its divergence early. The signal is real — the onset relationship is the one
+pattern in this project that survived family demeaning — but it is a measure of
+*how close*, symmetric about the optimum and therefore silent on *which way*.
+
+### Why this explains the main result
+
+This is also the best available account of why the architecture experiment
+produced +1.10 points with an interval spanning zero. Information about how
+close a configuration is cannot drive a choice between configurations: to pick,
+a model needs to know which direction is better, and that is precisely what is
+absent. The diagnostics were a real signal attached to the wrong question.
+
+It also predicts, correctly, where the effect did show up: the mechanism split
+(7c) found the largest difference in the families where the best-fitting member
+is not the best-scoring one — the cases where proximity information *does*
+distinguish something accuracy alone does not. That subgroup effect was small
+and its interval spanned zero, which is what a weak-but-real signal at n = 26
+should look like.
+
+### What would carry direction
+
+Nothing in `train_stat` as currently recorded is asymmetric about the optimum.
+A directional signal would need a quantity whose sign differs above and below
+the best setting — for example the sign of the loss curvature, the ratio of
+gradient norm to update size, or a comparison against a reference run at a known
+learning rate. Recording one of those is a change to the instrumentation, not a
+change to the prompt, and it is the precondition for any future version of this
+experiment.
 
 ## 8. Files (all new; no existing file modified)
 

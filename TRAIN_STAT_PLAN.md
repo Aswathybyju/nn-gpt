@@ -1064,6 +1064,110 @@ generating new multi-setting runs.
 
 Raw output: `results/verification/dataset_family_survey.json`.
 
+
+## 7m. Hyperparameter-optimisation extension: assessed and not pursued
+
+A proposed follow-up kept the family prompt but had the LLM output hyperparameters
+instead of architecture code, with the diagnostics again as the treatment. Four
+feasibility checks were run before any design work. Two are disqualifying.
+
+### Prior work: HPGPT is a different task
+
+`ab/gpt/act/tune/Hyperparameters.py` + `ab/gpt/util/lemur_dataset_preparation.py`
+LoRA-fine-tune a model on LEMUR question/answer pairs of the form *"generate the
+hyperparameters ... so that the model achieves accuracy = X with epochs = N"*.
+That is **inverse modelling conditioned on a target accuracy**, not optimisation.
+Its corpus comes from `api.data()`, which carries no `train_stat`, so it shows no
+diagnostics; and `generate_model_responses` writes the model's text to JSON
+without ever training the proposed settings, so it reports no accuracy at all.
+An extension is therefore genuinely new work, not a duplicate.
+
+### Disqualifying finding 1: there is no headroom
+
+| | |
+|---|---|
+| settings per architecture at epoch 10 | median **3**, max 6 |
+| shown in the prompt | up to 4 |
+| **families whose shown set already contains the global best** | **27/29 (93%)** |
+| families with >= 1 accuracy point of headroom | **0/29** |
+
+"Shown" is effectively "all", so *beat the best shown* and *beat Optuna's best*
+are the same target, and that target is already in the prompt. Optuna is also a
+weaker opponent than assumed — a median of **10** distinct settings per
+architecture across all epochs, not hundreds.
+
+### Disqualifying finding 2: the diagnostics carry no direction
+
+Per-setting (67 non-best members across 29 families):
+
+| | epoch 10 | epoch 20 |
+|---|---|---|
+| corr(gen_gap, \|log10 lr/lr_best\|) | **-0.46** | **-0.47** |
+| mean gap, lr above best | +0.081 | +0.133 |
+| mean gap, lr below best | +0.090 | +0.126 |
+
+The distance correlation is **negative** — a large train-test gap means the
+setting is *close* to the best learning rate, because far-off settings underfit
+and so have small gaps. The gap is also near-identical above and below the best
+lr, so it gives no directional signal.
+
+Across the family (the shape the prompt actually presents):
+
+| | epoch 10 | epoch 20 | chance |
+|---|---|---|---|
+| gap peak interior in lr order | 17/29 (59%) | 13/29 (45%) | 39% |
+| strict inverted-U | 16/29 (55%) | 12/29 (41%) | 39% |
+| **peak is the best-scoring member** | **9/29 (31%)** | **6/29 (21%)** | **31%** |
+
+There is a weak tendency toward an interior peak at epoch 10, but it **does not
+localise the better setting** — at chance, and below chance at epoch 20. The
+interpolation mechanism requires localisation, so it is not available here.
+
+### Mechanics, for the record
+
+- The file Eval reads is **`hp.txt`**, not `hp.json`, containing JSON. Writing it
+  *and* omitting `prm` from `anchor_row` is what makes the model's values bind;
+  either alone fails silently.
+- All 29 reference architectures declare the same
+  `supported_hyperparameters() == {'lr', 'momentum'}`, so one prompt serves all.
+- `batch` and `transform` are also honoured from `hp.txt` (`Train` indexes
+  `prm['batch']` directly; Eval only defaults `transform` when it is missing).
+- **No range validation on this path.** Optuna's bounds (lr 1e-5..1.0 log,
+  momentum 0..1, dropout 0..0.5, batch 2^0..2^12) apply only to Optuna's own
+  sampling. A value from `hp.txt` goes straight to training: out-of-range is
+  accepted silently, a missing `batch` raises `KeyError`, and an unused declared
+  param raises in `ab/gpt/util/Eval.py:85`.
+- Arbitrary epochs work: `prm["epoch"] = int(nn_train_epochs)` overrides
+  unconditionally. `epoch_limit_minutes` (30) is **per epoch** and would not
+  bite; the slowest of these architectures runs ~9.6 min/epoch at 20 epochs.
+- Cost at 98 families x 3 rounds x 2 arms (~353 trained, measured means):
+  **~38 GPU-h at 3 epochs, ~84 at 10, ~163 at 20.**
+
+### Attribution limit on `transform`
+
+`transform` cannot be credited or discounted from this corpus: **29/29 families
+have exactly as many distinct transforms as members**, so one-hot transform is a
+row identifier and yields R^2 = 1.000 by construction. Among the estimable
+factors, within family: log10(lr) 0.36, log2(batch) 0.12-0.15, momentum 0.00.
+
+## 7n. Recurring hazard: marginal patterns in this corpus dissolve under control
+
+Three times now a clear-looking pattern has disappeared once the right thing was
+held fixed:
+
+| pattern | how it looked | what killed it |
+|---|---|---|
+| experimental arm copies the reference less | -11.5 points | three more rounds: -1.4 points (7c) |
+| `gradient_norm` U-shape and its interaction with `train_loss` | +5.88 points at high loss | holding the family fixed: interaction +0.000 R^2 (7k) |
+| `transform` explains nearly all within-family accuracy | R^2 = 1.000 | 76 distinct transforms over 102 settings — a row identifier (7m) |
+
+The corpus invites this: architectures differ enormously, families are small,
+and several fields are near-unique per row. **Any marginal statistic here should
+be re-computed with the family held fixed before it is believed**, and a
+suspiciously perfect fit should be read as a collinearity warning rather than a
+result. The paired design applies this discipline to the main outcome; these
+three cases show it is equally needed for every supporting claim.
+
 ## 8. Files (all new; no existing file modified)
 
 | file | role |

@@ -1847,25 +1847,34 @@ loop and answers the hyperparameter question instead is: **the LLM proposes
 `(lr, momentum)` each iteration with the architecture held fixed.** Only the
 output changes; propose -> train -> observe -> propose again is untouched.
 
-### The claim, in its strongest form
+### The claim, and a correction to a stronger version of it that does not hold
 
 Optuna's TPE is strong on two continuous dimensions and an LLM is not expected to
-out-search it. But **TPE consumes one scalar per trial — the final accuracy — and
-structurally cannot see the per-epoch trajectory.** That trajectory is exactly
-what section 7p showed carries proximity information. So the question this
-variant asks is not
+out-search it, so the comparison that carries any result is arm versus arm: the
+same loop, with and without the trajectory in its feedback. Optuna is the
+reference point for what a dedicated optimiser achieves on the same budget.
 
-> can a 7B model out-search a dedicated optimiser
+An earlier draft of this section claimed something stronger — that TPE consumes
+one scalar per trial and **structurally cannot see** the per-epoch trajectory, so
+the question was whether an LLM can use information a dedicated optimiser cannot.
+**That is false and is withdrawn.** Optuna 4.4.0 ships nine pruners
+(`MedianPruner`, `SuccessiveHalvingPruner`, `HyperbandPruner`, `WilcoxonPruner`,
+`PercentilePruner`, `PatientPruner`, `ThresholdPruner`, `NopPruner`,
+`BasePruner`) and its pruning API — `trial.report(value, step)` with
+`trial.should_prune()` — consumes exactly the per-epoch intermediate values.
+A dedicated optimiser can see the trajectory, and standard practice does.
 
-which it probably cannot, but
+What survives is narrower and true:
 
-> **can a 7B model use information a dedicated optimiser cannot see.**
+> Standard HPO uses the trajectory **only to abandon trials**, never to choose
+> where to sample next. TPE's *sampler* takes one scalar per completed trial and
+> ignores intermediate values entirely. Whether the trajectory can inform the
+> *proposal* rather than the *stopping decision* is open.
 
-That is the strongest version of this project's claim, and the whole of the
-design below exists to test it. Optuna appears throughout as the reference point
-for what a scalar-only optimiser achieves on the same budget — context, not the
-opponent. The comparison that carries the result is arm versus arm: the same
-loop, with and without the trajectory in its feedback.
+That is the question the arms test. It is a real gap in the literature and it is
+worth testing, but it is not an information asymmetry — it is a difference in
+what the information is used for. Any write-up that claims the stronger version
+will not survive a reviewer who knows the pruner API.
 
 ### Why the mechanism maps directly here, and did not before
 
@@ -1981,10 +1990,10 @@ correct for the architecture loop and may still be wanted there.
 
 ### A free mechanism check on the optimiser itself
 
-The asymmetry above is testable without running either arm, because every Optuna
-trial in the headroom measurement records its own per-epoch trajectory while TPE
-sees only the scalar. Two non-circular tests, per architecture, within
-architecture and never pooled (section 7n):
+The narrowed claim above is partly testable without running either arm, because
+every Optuna trial in the headroom measurement records its own per-epoch
+trajectory while the *sampler* sees only the scalar. Two non-circular tests, per
+architecture, within architecture and never pooled (section 7n):
 
 1. **Early information.** Do epoch-1 *train-side* features alone — `train_loss`,
    `train_acc`, never `test_acc`, which would leak the objective — rank the
@@ -1998,9 +2007,28 @@ architecture and never pooled (section 7n):
    correlation with final accuracy rank-residualised out of both sides. What
    survives residualisation is proximity information the scalar does not contain.
 
-**If that information is present and demonstrably unused, it is the clearest
-motivation the experiment can have** — and if it is absent, the premise is dead
-before either arm runs. Driver: `out/timing/trajectory_vs_tpe.py`.
+Driver: `out/timing/trajectory_vs_tpe.py`.
+
+**Measured on `model_iter_1094`, n = 30 trials, zero failures.**
+
+*Test 1 passes, and in doing so weakens the motivation rather than
+strengthening it.* Epoch-1 `train_loss` alone ranks trials against the final
+objective at Spearman **-0.883**; the final-epoch value reaches -0.987 and
+`final_train_acc` +0.986. A third of each trial's cost carries most of the
+ranking signal — which is exactly what a median or successive-halving pruner
+exists to exploit. The information is present *and already used* by standard
+tooling, for stopping.
+
+*Test 2 is null.* Raw correlations with distance to the optimum are large —
+`final_train_loss` +0.862, `final_train_acc` -0.866 — and collapse after
+rank-residualising final accuracy out of both sides, to **-0.097** and
+**+0.032**. The largest surviving residual is epoch-1 `train_loss` at **-0.316**.
+So the apparent proximity signal is mostly accuracy restated.
+
+This is section 7p and section 7o reproduced on a live search rather than on the
+fixed corpus — **a third independent instance of the section 7n hazard**, and the
+first outside the LEMUR database. The proximity premise does not get stronger
+when moved from a corpus to a search.
 
 ### Open gate: headroom
 

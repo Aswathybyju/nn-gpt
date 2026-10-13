@@ -12,6 +12,10 @@ epoch 10:
 > best is not the configuration that scores best on test — and where they
 > disagree, the difference is a median of 6.5 accuracy points (max 16.6).**
 
+"Fits the training data best" here means highest `train_accuracy`. The same
+measurement on `train_loss` gives 48% (14 of 29). Every figure quoted as 41% in
+this document, including the mechanism split, is the `train_accuracy` variant.
+
 This is a direct measurement of the `train_stat` table, not an outcome of the
 generation experiment. It says that **the diagnostics carry information accuracy
 alone cannot express**: a setting can look strongest by `train_accuracy` while
@@ -97,11 +101,12 @@ incomplete scan of epochs. Two corrections make a small effect detectable:
 | epoch | 10 | **20** (better separation of diagnostics from accuracy, same family count) |
 | minimum settings per family | 3 | **2** |
 | families | 29 | **98** |
-| families where diagnostics are informative | 41% | **40%** — treatment strength preserved |
+| families where diagnostics are informative (`train_accuracy`) | 41% | **40%** — treatment strength preserved |
 | effect detectable at 80% power | d = 0.52 | **d = 0.28** |
 
 Allowing two-setting families triples the pool, and at epoch 20 it does so
-without diluting the treatment (40% informative against the current 41%; at
+without diluting the treatment (40% informative against the current 41%, both
+`train_accuracy`; at
 epoch 10 the same relaxation would drop it to 24%). The disagreements are
 shallower when they occur (+2.79 against +6.49 points), so the treatment is
 broader but weaker.
@@ -134,7 +139,8 @@ informative table in the study.
 advance.** The one that survived — a larger effect in families where the
 best-fitting configuration is not the best-scoring one — was specified before
 the data were seen, from a prior measurement that 41% of families have that
-property. Even so it is weak: +1.64 points [-3.67, +6.96] in those 12 families
+property by `train_accuracy` (48% by `train_loss`); the subgroups use the
+`train_accuracy` split. Even so it is weak: +1.64 points [-3.67, +6.96] in those 12 families
 against +0.64 [-3.90, +5.18] in the other 14.
 
 The copy-rate result is the cautionary one. At three rounds it looked like the
@@ -194,8 +200,9 @@ observations did not.
 **Two things stand independently of that null.** The per-epoch instrumentation
 itself — the `train_stat` table, 325,846 rows at the time of this analysis — and
 the measurement it makes
-possible: in 41% of families the best-fitting configuration is not the
-best-scoring one, worth a median 6.5 accuracy points. **The diagnostics
+possible: in 41% of families the best-fitting configuration (by
+`train_accuracy`; 48% by `train_loss`) is not the best-scoring one, worth a
+median 6.5 accuracy points. **The diagnostics
 demonstrably contain information that accuracy does not.** What this experiment
 leaves undetermined is a narrower question: whether a 7B code model can exploit
 that information when it is placed in a prompt, at a sample size of 29 families.

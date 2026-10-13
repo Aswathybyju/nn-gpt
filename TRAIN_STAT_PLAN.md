@@ -123,8 +123,14 @@ they would change a decision. Over the members actually shown in the prompt
 | median within-family spread, `train_loss` | **0.6372** | 0.2149 |
 | median within-family spread, `train_accuracy` | **0.2387** | 0.0776 |
 
-In 41% of epoch-10 families the best-fitting configuration is **not** the
-best-scoring one — the overfit signal a diagnostics-aware model could act on —
+**Which field the quoted figure uses.** The disagreement rate differs by field:
+at epoch 10 it is **41% for `train_accuracy`** and **48% for `train_loss`** (at
+epoch 20 the two swap, 48% and 41% — section 7k). Every bare "41%" in this
+document, and the mechanism split built on it, is the **`train_accuracy`**
+variant. Where a passage depends on the number, the field is now named inline.
+
+In 41% of epoch-10 families (`train_accuracy`; 48% by `train_loss`) the
+best-fitting configuration is **not** the best-scoring one — the overfit signal a diagnostics-aware model could act on —
 and where they disagree the accuracy difference is large: median 6.5 points,
 max 16.6. At epoch 1 that happens in 8% of families and is worth 0.25 points,
 which is noise. The spreads confirm the shown numbers differ meaningfully
@@ -581,7 +587,8 @@ mid-range point on a continuum, not a stable estimate.** Wide interval at n=14.
 
 **The mechanism split (section 7c) is the stronger result**: it needs no
 arbitrary threshold, and the subgroup was predicted in advance from the 41%
-measurement of families whose best-fitting member is not their best-scoring one.
+`train_accuracy` measurement of families whose best-fitting member is not their
+best-scoring one.
 Where one of the two has to be quoted, quote that one.
 
 ### Nulls
@@ -766,8 +773,10 @@ The two results that collapsed are the two that were not predicted in advance.
 | diagnostics informative | 12 | +1.64 pts | [-3.67, +6.96] | +0.196 | 7/12 |
 | diagnostics redundant | 14 | +0.64 pts | [-3.90, +5.18] | +0.081 | 5/14 |
 
-**It did not collapse, but it weakened.** The ordering predicted from the 41%
-measurement held — informative above redundant, both positive — but the gap
+**It did not collapse, but it weakened.** The subgroups are defined by the
+**`train_accuracy`** argmax disagreement (12 of 29 families informative); the
+`train_loss` variant would have split them 14/15. The ordering predicted from
+that 41% measurement held — informative above redundant, both positive — but the gap
 between subgroups halved (1.69 -> 1.00 points), the effect-size ratio fell from
 8x to 2.4x, and the informative arm's win rate dropped from 8/10 to 7/12. Both
 intervals comfortably span zero.
@@ -857,9 +866,10 @@ The primary arm should have run at epoch 20.
 Spearman rho cannot be used to judge k=2 families: with two members it is +/-1 by
 construction, so the 0.92-0.95 values in the earlier sweep are an artifact, not
 evidence of redundancy. The right measure is the one that produced the 41%
-figure — how often the best-fitting member is not the best-scoring one.
+`train_accuracy` figure — how often the best-fitting member is not the
+best-scoring one. The column below is `train_accuracy` throughout.
 
-| configuration | families | argmax disagreement | accuracy gap when they disagree |
+| configuration | families | argmax disagreement (`train_accuracy`) | accuracy gap when they disagree |
 |---|---|---|---|
 | epoch 10, k>=3 (current primary) | 29 | **41%** | median +6.49 pts |
 | epoch 10, k>=2 | 99 | 24% | median +3.87 pts |
@@ -867,7 +877,7 @@ figure — how often the best-fitting member is not the best-scoring one.
 | **epoch 20, k>=2** | **98** | **40%** | median +2.79 pts |
 
 **Epoch 20 with k>=2 holds the treatment strength of the current primary (40% vs
-41%) with 3.4x the families.** At n=98 paired families, 80% power arrives at
+41%, both `train_accuracy`) with 3.4x the families.** At n=98 paired families, 80% power arrives at
 d = 0.28 instead of d = 0.52 — still above the d = 0.12-0.25 a 1-2 point gain
 implies, but far closer than the present design. The disagreements are smaller
 when they occur (+2.79 vs +6.49 points), so the treatment is broader but
@@ -932,7 +942,8 @@ is a between-architecture confound**, and so is the U-shape above.
 
 ### 3. Within-family argmax disagreement, against a chance baseline
 
-The 41% figure needs a reference: a pure-noise field with k members disagrees
+The 41% `train_accuracy` figure needs a reference: a pure-noise field with k
+members disagrees
 1 - 1/k of the time, which is ~69% here. Below that is evidence of information.
 
 | field (direction) | epoch 10 | epoch 20 | reading |
@@ -1005,7 +1016,7 @@ per-epoch `train_stat` landed carry diagnostics.
 One architecture, one fixed epoch, k distinct `(lr, momentum, batch)` **values**
 (never `prm` uid), `train_stat` present on every member, `max(lr)/min(lr) >= 2`.
 
-| dataset | epoch | k>=3 | k>=2 | disagreement (k>=3) | median gap | distinct architectures |
+| dataset | epoch | k>=3 | k>=2 | disagreement (k>=3, `train_accuracy`) | median gap | distinct architectures |
 |---|---|---|---|---|---|---|
 | **cifar-10** | 10 | **29** | 99 | **12/29 = 41%** | +0.0649 | 29 |
 | **cifar-10** | 20 | **29** | 98 | **14/29 = 48%** | +0.0680 | 29 |
@@ -1556,10 +1567,26 @@ Both are reported; one is named primary.
 * **Secondary — best accuracy at the iteration budget** (the paper's metric, for
   comparability) **and mean best-so-far over the budget** (AUC/B). Both are reported
   whatever they show, with the compression above stated.
-* **Mechanism — rate of near-duplicate consecutive proposals** (similarity >= 0.95,
-  and the byte-identical rate separately), against the measured control values of
-  64.8% and 32.5%. A gain with no movement here is not evidence for the stated
-  mechanism, and will be reported as such.
+* **Mechanism — rate of near-duplicate consecutive proposals** (similarity
+  >= 0.95, and the byte-identical rate separately), against the measured control
+  values of **64.8%** and **32.5%** and a median consecutive similarity of
+  **0.9864**. These are pre-registered as the mechanism target, before any run.
+
+  The stated mechanism predicts the treatment moves them: if proximity
+  information tells the improver that the current edit direction is
+  near-exhausted, the loop should stop re-proposing the same code. Both
+  directions are therefore interpretable, and the reading of each is fixed now:
+
+  * **Accuracy gain with no movement in the redundancy target** is *not*
+    evidence for the stated mechanism. Whatever produced the gain, it was not
+    the loop recognising an exhausted direction, and it will be reported that way
+    rather than as mechanism support.
+  * **Movement in the redundancy target with no accuracy gain** is still an
+    interpretable result, and a publishable one: the diagnostics changed the
+    loop's search behaviour in the predicted direction without that translating
+    into a better architecture at this budget. That separates "the signal is
+    inert" from "the signal is used but does not pay inside this many
+    iterations", which the accuracy metrics alone cannot do.
 
 ### Variance: one loop per arm is n = 1
 
@@ -1587,20 +1614,66 @@ alpha = 0.05, 80% power, exact noncentral t):
 large effect will be reported as inconclusive, not as a trend.
 
 **Secondary — fork-paired blocks, which is the stronger control.** Run one long
-control prefix, checkpoint the pipeline state (prompt template, current code and
-accuracy, `improvement_history`) at a set of pre-chosen iterations, and from each
-checkpoint fork two short runs — control and treatment — over a fixed horizon.
-Both start from *identical* state, so this holds constant everything seed-pairing
-only holds constant at iteration 1, and it answers the mechanism question directly:
-given the same current state, does seeing the trajectory produce a better next edit?
-It also yields many pairs per GPU-hour. Blocks from one prefix are not independent,
-so the analysis is at prefix level, or blocks are clustered by prefix. It needs a
-state dump/load the pipeline does not have (additive, modest).
+control prefix, checkpoint the pipeline state at a set of pre-chosen iterations,
+and from each checkpoint fork two short runs — control and treatment — over a
+fixed horizon. Both start from *identical* state, so this holds constant
+everything seed-pairing only holds at iteration 1, and it answers the mechanism
+question directly: given the same current state, does seeing the trajectory
+produce a better next edit? It also yields many pairs per GPU-hour. Blocks from
+one prefix are not independent, so the analysis is at prefix level, or blocks are
+clustered by prefix.
 
-**One confound to name.** The treatment prompt is longer than the control's by three
-numbers per epoch. A length-matched placebo arm (shuffled or constant trajectories)
-would separate information from context length. It triples cost; recorded as an
-option, not a requirement, with the length difference reported either way.
+**Costed, because the choice between the two designs turns on it.** Seed-pairing
+at S = 6 only detects `d_z` = 1.44, which is implausibly large, so fork-pairing is
+worth building if it is a day's work and not if it is a week. It is a day's work.
+The pipeline's entire mutable state is eleven plain attributes, all
+JSON-serialisable — no tensors, no handles, nothing opaque:
+
+```python
+# ab/gpt/act/markov/pipeline.py:48-61
+current_prompt_template, best_code, best_accuracy, best_iteration,
+current_improvement_suggestions, last_generated_code, last_accuracy,
+iteration, results_history, improvement_history, pending_history_entry
+```
+
+`CodeGenerator` holds mirrors of four of them, restored by the two existing
+`update_improvement_suggestions` / `update_current_code_and_accuracy` setters, so
+nothing new is needed there. The RNG is the part that would normally make
+checkpointing hard, and here it does not: `LLMClient` seeds each call as
+`self.seed + self._call_counter` (`llm_client.py:58-69`), so the sampling stream
+is fully described by **two integers**. A checkpoint is those eleven attributes
+plus `_call_counter`.
+
+Estimate: ~30 lines for `save_state()`/`load_state()` on `Pipeline`, ~100 lines
+for a fork driver that runs the prefix, dumps at the chosen iterations and
+launches the paired short runs into separate output directories. Both additive —
+`run()` is unchanged when the methods go unused. The validation is cheap and
+exact: a run restored at iteration i must generate byte-identical code at
+iteration i+1 to a run that never stopped, which `seed + _call_counter` makes
+checkable. For that to hold the real runs must use the determinism settings
+`pipeline.py`'s `__main__` already applies (`use_deterministic_algorithms(True)`,
+`cudnn.enabled = False`) — the timing driver does not set these and does not need
+to.
+
+**Recommendation: build it.** A day against a design that otherwise cannot see
+anything smaller than `d_z` = 1.0 is worth paying.
+
+### Acknowledged confound: prompt length
+
+The treatment prompt is longer than the control's by three numbers per epoch. A
+length-matched placebo arm — shuffled or constant trajectories, same token count,
+no information — would separate information from context length, but it adds a
+third arm and triples the cost. **It is not being built. The length difference is
+recorded as an acknowledged confound of this design, not solved.**
+
+Two things limit how much it can explain. The difference is small in absolute
+terms (nine numbers at three epochs, against prompts of thousands of tokens). And
+the pre-registered redundancy target partly addresses it: prompt length alone has
+no obvious reason to reduce the rate of byte-identical consecutive re-proposals,
+so movement in that target is harder to attribute to context length than a bare
+accuracy difference would be. Partly, not wholly — a longer prompt could perturb
+sampling enough to break repetition by accident. The confound is stated, its
+bound is stated, and the claim is kept inside it.
 
 ### Cost: pending the timing run
 

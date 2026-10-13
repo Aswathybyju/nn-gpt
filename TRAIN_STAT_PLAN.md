@@ -2163,6 +2163,109 @@ and its falsification clause, the timing decomposition, and the finding that the
 the reusable result — it says any future hyperparameter work on this corpus must
 either search more than two dimensions or search something other than SGD's.
 
+## 7t. The expanded space: more dimensions, still no headroom
+
+**Status: 1 of 3 architectures. `model_iter_1094` and `model_iter_165` were still
+queued on a saturated cluster when this was written** (9 of 12 nodes with no free
+GPU). The section is written now so the completed measurement is not lost, and
+will be extended rather than rewritten.
+
+Section 7s's no-headroom result was over two parameters. The objection is that
+two dimensions is a small space. This searches seven.
+
+### Fixed before the run
+
+* **Stop rule.** Under **+2 accuracy points** on the architecture with the
+  largest gap closes the direction. No extending the trial count to get closer.
+* **Search adequacy.** 60 TPE trials in seven dimensions is thin, and if the
+  answer is "no headroom" the first objection will be that the search was
+  inadequate — an argument only worth anything made beforehand. **If best-so-far
+  at trial 30 is within 0.5 points of trial 60, the budget was not binding and
+  the result is about the space.** Otherwise it is reported as inconclusive on
+  budget grounds.
+* **Prediction.** `batch_size` folds into the collapse via the linear scaling
+  rule; `weight_decay` acts on the weights rather than the step and stays
+  independent.
+
+Space: `lr` log-uniform `[1e-5, 1]`, `momentum` `[0, 0.999)`, `batch_size`
+`2^{5..10}`, `weight_decay` log-uniform `[1e-6, 1e-1]`, `nesterov`,
+`label_smoothing` `[0, 0.2]`, `scheduler`. Default is what `train_script.py`
+hardcodes. 60 Optuna TPE trials for the headroom result, **30 uniform random
+trials for the dimensionality analysis** — TPE concentrates where accuracy is
+good, so a parameter it stopped varying looks unimportant whether or not it is.
+AdamW runs once at its own defaults as context, not as a search dimension.
+
+Artifact: `results/verification/hp_expanded_headroom.json`.
+
+### Gate result on `model_iter_538`: fails
+
+| | accuracy | gap over the default 0.8189 |
+|---|---|---|
+| TPE best, n = 60 (the pre-registered figure) | 0.8145 | **-0.44 pts** |
+| best of all 90 trials | 0.8200 | **+0.11 pts** |
+| AdamW at its own defaults | 0.7990 | -1.99 pts |
+
+**Zero of 60 TPE trials beat the default**; one of 30 random trials did, by 0.11
+points. Adding five dimensions to the same trial budget made the search *worse*,
+not better — section 7s needed 26 of 30 trials in two dimensions to edge past the
+default, and 60 in seven dimensions never did.
+
+The one configuration out of ninety that beat the default sat at **effective
+learning rate 0.0991** against the default's **0.1000**.
+
+**Search adequacy: met.** Best-so-far 0.8108 at trial 30 -> 0.8145 at trial 60,
+a gain of +0.37 points, under the 0.5 threshold; within a point of its own best
+by trial 17. `plateaued_by_30 = True`. The budget was not the binding
+constraint, so this is a statement about the space.
+
+**AdamW reverses with epochs.** At one epoch it beat the SGD default by +0.76
+points (smoke run, `model_iter_165`); at three epochs it loses by 1.99. Adam
+converges faster early, then SGD with momentum and cosine annealing overtakes
+it. A one-epoch proxy would have given the opposite answer.
+
+### Dimensionality: both predictions confirmed
+
+Uniform-random design, n = 30, cubic baseline on the best-fitting collapse,
+500-shuffle permutation null per parameter:
+
+| parameter | delta R^2 | null p95 | p | verdict |
+|---|---|---|---|---|
+| `weight_decay` | **+0.2093** | +0.1026 | **0.004** | **beyond the collapse** |
+| `scheduler` | +0.0609 | +0.0582 | 0.042 | marginal |
+| `batch_size` | +0.0170 | +0.1061 | 0.625 | explained by the collapse |
+| `nesterov` | +0.0082 | +0.0573 | 0.543 | explained by the collapse |
+| `label_smoothing` | +0.0047 | +0.1030 | 0.902 | explained by the collapse |
+
+Five parameters tested, so Bonferroni sets alpha = 0.010: **`weight_decay`
+survives, `scheduler` does not.** `batch_size` folds in as predicted;
+`weight_decay` is independent as predicted.
+
+**The TPE cross-check finds nothing at all** — every parameter p > 0.1,
+`weight_decay` included. That is the sampler bias the random design was added to
+avoid, and it is the justification for having paid the extra 50% in trials:
+run on TPE's own trials, this analysis would have concluded the space is
+one-dimensional, which is false.
+
+### Why a real second dimension still produced no headroom
+
+Restricting to the 39 trials with a sane effective learning rate (0.03 to 0.35),
+mean accuracy by `weight_decay` bin:
+
+| `weight_decay` | n | mean accuracy |
+|---|---|---|
+| `[1e-6, 1e-4)` | 8 | 0.7749 |
+| **`[1e-4, 1e-3)` — the default's bin (5e-4)** | 14 | **0.7978** |
+| `[1e-3, 1e-2)` | 13 | 0.7817 |
+| `[1e-2, 1e-1)` | 4 | 0.6293 |
+
+`weight_decay` is a dimension you can **fall off, not climb**. Real influence,
+downside only, and the hardcoded default already sits in its best bin — the same
+shape as the effective-learning-rate finding in section 7s. That is why adding
+dimensions did not add headroom, and it is the reusable result: **on this
+training setup the defaults are not merely adequate, they are jointly near
+optimal, and the search space's extra axes are failure modes rather than
+opportunities.**
+
 ## 8. Files (all new; no existing file modified)
 
 | file | role |

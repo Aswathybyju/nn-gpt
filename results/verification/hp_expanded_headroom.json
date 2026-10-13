@@ -1,0 +1,236 @@
+{
+  "_what": "Section 7t: expanded 7-dimension hyperparameter space, headroom and dimensionality. 60 Optuna TPE + 30 uniform random trials per architecture, 3 epochs, CIFAR-10. PARTIAL: 1 of 3 architectures; the other two were still queued on a saturated cluster. Measured 2026-10-13.",
+  "_stop_rule": "under +2 accuracy points on the architecture with the largest gap closes the direction; fixed before the run",
+  "_search_adequacy": "best-so-far at trial 30 within 0.5 points of trial 60 means the budget was not binding; fixed before the run",
+  "instrument_self_test": "passed; see ab/gpt/util/hp_dimensionality.py --self-test",
+  "per_architecture": {
+    "model_iter_538.py": {
+      "default": 0.8189,
+      "tpe_best": 0.8145,
+      "tpe_gap_pts": -0.44,
+      "random_best": 0.82,
+      "random_gap_pts": 0.11,
+      "best_of_all_90_pts_gap": 0.11,
+      "trials_beating_default": {
+        "tpe": 0,
+        "random": 1
+      },
+      "adamw_gap_pts": -1.99,
+      "convergence": {
+        "best_so_far": "omitted, see driver output",
+        "best_at_trial_30": 0.8108,
+        "best_at_end": 0.8145,
+        "gain_after_trial_30_pts": 0.37,
+        "plateaued_by_30": true,
+        "within_1pt_at_trial": 17,
+        "within_0_5pt_at_trial": 22
+      },
+      "best_trial_effective_lr": 0.0991,
+      "default_effective_lr": 0.1,
+      "dimensionality_random_design": {
+        "label": "uniform random",
+        "usable_trials": 30,
+        "collapse_fits": {
+          "log10_lr": {
+            "r2": 0.5397,
+            "adj_r2": 0.5056
+          },
+          "log10_eff_lr": {
+            "r2": 0.5136,
+            "adj_r2": 0.4775
+          },
+          "log10_lr_over_batch": {
+            "r2": 0.4591,
+            "adj_r2": 0.419
+          },
+          "log10_eff_lr_over_batch": {
+            "r2": 0.5174,
+            "adj_r2": 0.4817
+          }
+        },
+        "best_collapse": "log10_lr",
+        "baseline_r2": 0.5397,
+        "baseline_adj_r2": 0.4866,
+        "added_beyond_collapse": {
+          "log10_batch": {
+            "r2": 0.5567,
+            "delta_r2": 0.017,
+            "delta_adj_r2": -0.0222,
+            "null_p95_delta_r2": 0.1061,
+            "p_value": 0.6248,
+            "verdict": "explained by the collapse"
+          },
+          "log10_weight_decay": {
+            "r2": 0.749,
+            "delta_r2": 0.2093,
+            "delta_adj_r2": 0.2101,
+            "null_p95_delta_r2": 0.1026,
+            "p_value": 0.004,
+            "verdict": "beyond the collapse"
+          },
+          "label_smoothing": {
+            "r2": 0.5444,
+            "delta_r2": 0.0047,
+            "delta_adj_r2": -0.0371,
+            "null_p95_delta_r2": 0.103,
+            "p_value": 0.9022,
+            "verdict": "explained by the collapse"
+          },
+          "nesterov": {
+            "r2": 0.5479,
+            "delta_r2": 0.0082,
+            "delta_adj_r2": -0.011,
+            "null_p95_delta_r2": 0.0573,
+            "p_value": 0.5429,
+            "verdict": "explained by the collapse"
+          },
+          "cosine": {
+            "r2": 0.6006,
+            "delta_r2": 0.0609,
+            "delta_adj_r2": 0.0501,
+            "null_p95_delta_r2": 0.0582,
+            "p_value": 0.0419,
+            "verdict": "beyond the collapse"
+          }
+        },
+        "partial_spearman_with_residuals": {
+          "log10_batch": {
+            "spearman": -0.1606,
+            "curvature": -0.0866
+          },
+          "log10_weight_decay": {
+            "spearman": -0.5115,
+            "curvature": 0.2699
+          },
+          "label_smoothing": {
+            "spearman": -0.0723,
+            "curvature": -0.1426
+          },
+          "nesterov": {
+            "spearman": 0.028,
+            "curvature": null
+          },
+          "cosine": {
+            "spearman": 0.3088,
+            "curvature": null
+          }
+        },
+        "all_parameters_r2": 0.8843,
+        "all_parameters_adj_r2": 0.8135,
+        "accuracy_spread_pts": 72.0
+      },
+      "dimensionality_tpe_crosscheck": {
+        "label": "TPE (biased)",
+        "usable_trials": 60,
+        "collapse_fits": {
+          "log10_lr": {
+            "r2": 0.5686,
+            "adj_r2": 0.5535
+          },
+          "log10_eff_lr": {
+            "r2": 0.7492,
+            "adj_r2": 0.7403
+          },
+          "log10_lr_over_batch": {
+            "r2": 0.6093,
+            "adj_r2": 0.5956
+          },
+          "log10_eff_lr_over_batch": {
+            "r2": 0.7705,
+            "adj_r2": 0.7624
+          }
+        },
+        "best_collapse": "log10_eff_lr_over_batch",
+        "baseline_r2": 0.7716,
+        "baseline_adj_r2": 0.7593,
+        "added_beyond_collapse": {
+          "log10_batch": {
+            "r2": 0.7771,
+            "delta_r2": 0.0055,
+            "delta_adj_r2": -0.0028,
+            "null_p95_delta_r2": 0.0224,
+            "p_value": 0.5469,
+            "verdict": "explained by the collapse"
+          },
+          "log10_weight_decay": {
+            "r2": 0.781,
+            "delta_r2": 0.0094,
+            "delta_adj_r2": 0.0014,
+            "null_p95_delta_r2": 0.0246,
+            "p_value": 0.3493,
+            "verdict": "explained by the collapse"
+          },
+          "label_smoothing": {
+            "r2": 0.7785,
+            "delta_r2": 0.0069,
+            "delta_adj_r2": -0.0013,
+            "null_p95_delta_r2": 0.0248,
+            "p_value": 0.4371,
+            "verdict": "explained by the collapse"
+          },
+          "nesterov": {
+            "r2": 0.7816,
+            "delta_r2": 0.01,
+            "delta_adj_r2": 0.0064,
+            "null_p95_delta_r2": 0.0149,
+            "p_value": 0.1018,
+            "verdict": "explained by the collapse"
+          },
+          "cosine": {
+            "r2": 0.7734,
+            "delta_r2": 0.0018,
+            "delta_adj_r2": -0.0024,
+            "null_p95_delta_r2": 0.0142,
+            "p_value": 0.5309,
+            "verdict": "explained by the collapse"
+          }
+        },
+        "partial_spearman_with_residuals": {
+          "log10_batch": {
+            "spearman": -0.1533,
+            "curvature": -0.1769
+          },
+          "log10_weight_decay": {
+            "spearman": -0.0526,
+            "curvature": -0.0765
+          },
+          "label_smoothing": {
+            "spearman": -0.1618,
+            "curvature": -0.0863
+          },
+          "nesterov": {
+            "spearman": -0.2698,
+            "curvature": null
+          },
+          "cosine": {
+            "spearman": 0.3146,
+            "curvature": null
+          }
+        },
+        "all_parameters_r2": 0.7993,
+        "all_parameters_adj_r2": 0.7533,
+        "accuracy_spread_pts": 71.45
+      },
+      "weight_decay_bins_at_sane_eff_lr": {
+        "[1e-06,1e-04)": {
+          "n": 8,
+          "mean": 0.7749
+        },
+        "[1e-04,1e-03)": {
+          "n": 14,
+          "mean": 0.7978
+        },
+        "[1e-03,1e-02)": {
+          "n": 13,
+          "mean": 0.7817
+        },
+        "[1e-02,1e-01)": {
+          "n": 4,
+          "mean": 0.6293
+        }
+      },
+      "bonferroni_alpha": 0.01
+    }
+  },
+  "verdict_so_far": "Gate fails on this architecture: 0 of 60 TPE trials beat the default, 1 of 30 random trials did by +0.11 points, and that trial sat at effective lr 0.0991 against the default 0.1000. Search adequacy criterion met (plateaued by trial 30). batch_size folds into the collapse as predicted (p=0.625); weight_decay is a genuinely independent dimension (delta R2 +0.209, p=0.004, survives Bonferroni) but acts downside-only -- the default sits in its best bin and large values are catastrophic."
+}

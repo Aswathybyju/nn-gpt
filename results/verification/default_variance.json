@@ -1,0 +1,82 @@
+{
+  "_what": "Run-to-run variance at the hardcoded default (lr=0.01, momentum=0.9, batch=128, wd=5e-4), 3 epochs, CIFAR-10, node w7-mi. Measured 2026-10-13.",
+  "_pinned_means": "seed 43 every time, i.e. exactly how the section 7s search ran",
+  "_seeded_means": "model init and training RNG varied; loader order stays pinned to train_script.SEED and cannot vary without modifying that file",
+  "per_architecture": {
+    "model_iter_1094.py": {
+      "pinned": {
+        "values": [
+          0.8171,
+          0.8171,
+          0.8171,
+          0.8171,
+          0.8171
+        ],
+        "sd_pts": 0.0,
+        "range_pts": 0.0
+      },
+      "seed_varied": {
+        "values": [
+          0.8207,
+          0.8221,
+          0.8222,
+          0.8242,
+          0.8199
+        ],
+        "sd_pts": 0.165,
+        "range_pts": 0.43,
+        "mean_pts": 82.182
+      },
+      "section_7s": {
+        "default": 0.8199,
+        "tpe_best": 0.8202,
+        "gap_pts": 0.03
+      },
+      "gap_vs_init_spread": {
+        "measured_gap_pts": 0.03,
+        "init_sd_pts": 0.165,
+        "init_range_pts": 0.43,
+        "gap_exceeds_init_range": false
+      },
+      "seed43_position": -0.472
+    },
+    "model_iter_165.py": {
+      "pinned": {
+        "values": [
+          0.7929,
+          0.7929,
+          0.7929,
+          0.7929,
+          0.7929
+        ],
+        "sd_pts": 0.0,
+        "range_pts": 0.0
+      },
+      "seed_varied": {
+        "values": [
+          0.7913,
+          0.7902,
+          0.7861,
+          0.7892,
+          0.7827
+        ],
+        "sd_pts": 0.349,
+        "range_pts": 0.86,
+        "mean_pts": 78.79
+      },
+      "section_7s": {
+        "default": 0.7932,
+        "tpe_best": 0.7976,
+        "gap_pts": 0.44
+      },
+      "gap_vs_init_spread": {
+        "measured_gap_pts": 0.44,
+        "init_sd_pts": 0.349,
+        "init_range_pts": 0.86,
+        "gap_exceeds_init_range": false
+      },
+      "seed43_position": 0.5
+    }
+  },
+  "verdict": "Pinned repeats are bit-identical (sd 0.000), so every section 7s comparison was exactly paired on one initialisation and internally valid. But varying the initialisation moves the DEFAULT alone by 0.43 and 0.86 points, which exceeds all three gaps section 7s reported (+0.03, +0.11, +0.44). Those gaps therefore do not survive a change of initialisation. The 2-point threshold for section 7t sits about 6x the larger init sd (0.349) and above the largest observed range, so it is meaningful."
+}

@@ -2097,6 +2097,57 @@ default (distance 0.04, 149-207 settings), gains **+0.78** at epoch 10, **+1.60*
 at epoch 3 and **+1.66** at epoch 5. The live measurement is the one to trust and
 the corpus figure is recorded here only so it is not quoted later.
 
+### Initialisation noise, and why the gaps above do not survive a reseed
+
+Measured after the fact, five pinned repeats and five seed-varied repeats of the
+**default configuration alone**, 3 epochs, one node (artifact:
+`results/verification/default_variance.json`):
+
+| architecture | pinned (seed 43, x5) | seed-varied (x5) | sd | range |
+|---|---|---|---|---|
+| `model_iter_1094` | 0.8171 every time | 0.8199 - 0.8242 | 0.165 pts | **0.43 pts** |
+| `model_iter_165` | 0.7929 every time | 0.7827 - 0.7913 | 0.349 pts | **0.86 pts** |
+
+Two things follow, and they pull in opposite directions.
+
+**The gate measurements above were exactly paired, which is the strongest
+control available.** `train_script.py:46` calls `set_all_seeds(SEED)` at *module
+import*, so every trial in the search shared one model initialisation and one
+data order. Pinned repeats are bit-identical — sd 0.000, five times running, on
+both architectures. Nothing in the comparison between a trial and the default
+was contaminated by run-to-run noise.
+
+**But the gaps do not survive changing that initialisation.** Reseeding moves
+the *default by itself* by 0.43 and 0.86 points, which exceeds **all three**
+reported gaps (+0.03, +0.11, +0.44). Seed 43 is not a neutral draw either: it
+sits 0.47 points *below* the seed-varied mean on `model_iter_1094` and 0.50
+points *above* it on `model_iter_165`. So a configuration that beats the default
+by a tenth of a point at seed 43 may lose at seed 1002, and the +0.03 and +0.11
+figures in particular should be read as "indistinguishable from the default",
+not as small positive gaps.
+
+This does not rescue the variant — it makes the no-headroom conclusion stronger,
+since the measured ceiling is smaller than the noise a reseed introduces. It is
+recorded here, beside the numbers, so the gaps are never quoted without it.
+
+### Cluster-level caution: absolute accuracies do not transfer between nodes
+
+The same bit-identical configuration returned **0.8171 on `w7-mi`** and **0.8199**
+on the node that ran the gate measurement — a 0.28-point offset with sd 0.000
+*within* each node. Different GPUs select different kernels and the arithmetic
+differs; nothing about the run changed.
+
+**Anyone comparing accuracies from two different jobs on this cluster will hit
+this.** Comparisons are only safe inside one job. Any future design that needs
+cross-job comparison must either pin the node or carry its own control in every
+job.
+
+A second, unrelated operational note from the same run: the job would not
+schedule at first — `8 nodes Insufficient nvidia.com/gpu, 4 Insufficient cpu` —
+and dropping the **CPU** request from 8 to 4 scheduled it immediately. On a
+contended cluster the CPU request, not the GPU, is often what blocks a
+single-GPU job.
+
 ### Verdict on the hyperparameter variant
 
 Not built. The loop structure fits the mechanism better than anything else

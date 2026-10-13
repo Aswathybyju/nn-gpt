@@ -56,6 +56,9 @@ def main() -> int:
     p.add_argument('--data_dir', default='./data')
     p.add_argument('--dataset', default='cifar10', choices=sorted(_LOADERS))
     p.add_argument('--scheduler', default='cosine', choices=('cosine', 'none'))
+    p.add_argument('--seed', type=int, default=SEED,
+                   help='model init and training RNG; the data loader order is '
+                        'pinned to train_script.SEED and does not follow this')
     a = p.parse_args()
 
     result = {'success': False, 'accuracy': 0.0, 'error': None,
@@ -63,7 +66,7 @@ def main() -> int:
               'hyperparameters': {'lr': a.lr, 'momentum': a.momentum,
                                   'weight_decay': a.weight_decay,
                                   'batch_size': a.batch_size,
-                                  'epochs': a.epochs}}
+                                  'epochs': a.epochs, 'seed': a.seed}}
     try:
         if not 0.0 <= a.momentum < 1.0:
             raise ValueError(f'momentum must be in [0, 1), got {a.momentum}')
@@ -71,11 +74,15 @@ def main() -> int:
             raise ValueError(f'lr must be positive, got {a.lr}')
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # train_script seeds at import (train_script.py:46), so model init is
+        # normally pinned; reseeding here lets --seed vary it. With the default
+        # seed this reproduces the import-time state exactly.
+        set_all_seeds(a.seed)
         model = build_model(a.model_file).to(device)
         print(f'Model parameters: {sum(q.numel() for q in model.parameters()):,}')
 
         # seeds reset after construction, exactly as train_script.main does
-        set_all_seeds(SEED)
+        set_all_seeds(a.seed)
         train_loader, test_loader = _LOADERS[a.dataset](
             batch_size=a.batch_size, data_dir=a.data_dir)
 

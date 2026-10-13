@@ -1,6 +1,6 @@
 # Hyperparameter-family generation experiment — plan and measurements
 
-Status 2026-09-30.
+Status 2026-10-13.
 
 All numbers measured against the real LEMUR DB (`nn-gpt/db/ab.nn.db`,
 ~1.01M `stat` rows, 325,846 `train_stat` rows).
@@ -1299,6 +1299,334 @@ gradient norm to update size, or a comparison against a reference run at a known
 learning rate. Recording one of those is a change to the instrumentation, not a
 change to the prompt, and it is the precondition for any future version of this
 experiment.
+
+## 7q. The epoch-1 grouping: measured, and abandoned
+
+After §7m and §7o closed the one-shot hyperparameter route, a grouping was proposed
+that would hold `nn`, `epoch` and `transform` constant and let the hyperparameters
+vary, at epoch 1, expressed through nn-dataset's own `keep_same` machinery. Four
+measurements were taken before writing any code. All four are against it, and the
+second turns out to be a finding this document already records.
+
+Artifact: `results/verification/epoch1_grouping.json`, regenerated 2026-10-13.
+
+### 1. `keep_same` cannot express it
+
+Three separate blocks, all in nn-dataset's `ab/nn/util/db/Query.py` and
+`ab/nn/util/Const.py`.
+
+**`transform` is not a supported column.** `JoinConf.supported_columns` is
+`main_columns_ext` (`Query.py:358`), and
+
+```python
+# ab/nn/util/Const.py:156-157
+main_columns     = ('task', 'dataset', 'metric', 'nn')
+main_columns_ext = main_columns + ('epoch',)
+```
+
+`validate()` raises on any `same_columns` entry outside that set
+(`Query.py:369-372`), so `same_columns=('nn', 'epoch', 'transform')` is rejected
+outright. nn-gpt's monkey-patch skips `validate()`, so the same config would appear
+to "work" there while silently dropping the constraint — worse than an error.
+
+**There is no column for hyperparameter values.** The supported set has nothing for
+`lr`, `momentum` or `batch`. The only handle is `stat.prm`, a uid, and uids do not
+identify settings: one `(lr, momentum, batch)` triple spans **4,327 distinct uids**
+on CIFAR-10 (4,332 corpus-wide). "Same architecture, different hyperparameters" is
+therefore inexpressible — `diff_columns=('prm',)` would mostly return the same
+setting under a different uid. (`hp_family.py`'s docstring records 4,138 for this
+figure; the DB has grown since.)
+
+**Asking for `same_columns` at all caps a family at two members.** The variable-N
+SQL path is taken only when neither `same_columns` nor `diff_columns` is set:
+
+```python
+# ab/nn/util/db/Query.py:427-432
+if sql.num_joint_nns > 1 and not sql.same_columns and not sql.diff_columns:
+    return join_nn_query_sql_Var_num(sql, limit_clause, cur)
+# fallback: legacy pairwise logic
+return join_nn_query_legacy(sql, limit_clause, cur)
+```
+
+The legacy path is a two-row self-join over aliases `d1` and `d2`
+(`Query.py:532-537`), so it cannot return three members however `num_joint_nns` is
+set. The experiment needs k >= 3.
+
+### 2. The pool it produces is the pool §7f already rejected
+
+Not a *similar* pool — the same one. Measured on CIFAR-10 at epoch 1 with the
+transform held constant:
+
+| k | `min_lr_ratio` | families | GenFractalNet | share |
+|---|---|---|---|---|
+| >= 3 | >= 2.0 (the experiment's definition) | 183 | 181 | **98.9%** |
+| >= 3 | none | 202 | 200 | **99.0%** |
+| >= 2 | >= 2.0 | 604 | 534 | 88.4% |
+| >= 2 | none | 787 | 713 | 90.6% |
+
+Corpus-wide at k >= 3: 202 families with the lr constraint, 221 without. Only two
+non-GenFractalNet architectures exist in the k >= 3 pool at all — `AlexNet` and
+`ComplexNet`.
+
+§7f states this already: *"180 of its 181 families are GenFractalNet variants…
+its effective diversity is closer to 1 than to 183"*, and abandons epoch 1 for
+three independent reasons — one lineage, a treatment that is weak by design, and
+3% generation yield against epoch 10's 63%. The proposed grouping does not trade
+the treatment away for a new pool; it re-derives a pool already rejected on
+grounds that have not changed.
+
+**Correction to §7l.** §7l's table quotes median pairwise similarity 0.867 (47% of
+pairs >= 0.95) for the epoch-1 GenFractalNet pool, measured on a **25-architecture
+sample**. Over the full pool — 183 architectures, all 16,653 pairs — it is
+**0.9788, with 65.8% of pairs >= 0.95**. The sample understated the homogeneity.
+The epoch-10 pool actually used re-measures at **0.6051 / 8.9%**, consistent with
+§7l's 0.610 / 7%. So the comparison is two-way, not three-way, and it runs the
+wrong way for epoch 1 more strongly than previously recorded.
+
+### 3. No headroom
+
+For each family, compare the best accuracy among the members that would be shown
+against the best accuracy recorded for that architecture at that epoch under any
+setting:
+
+| | value |
+|---|---|
+| families | 183 |
+| shown set already contains the architecture's best | **172 (94.0%)** |
+| families with >= 1 accuracy point left on the table | 9 |
+| families with >= 3 points | 3 |
+| largest gap in the pool | 25.6 points |
+
+In 94% of families there is nothing for the model to find: the best setting is
+already on screen with its accuracy printed next to it.
+
+### 4. No treatment either: the diagnostics restate accuracy
+
+Within families, Spearman |rho| between each diagnostic and accuracy, and how often
+picking the member by diagnostic disagrees with picking it by accuracy:
+
+| | epoch 1 (n=183) | epoch 10 (n=29) |
+|---|---|---|
+| mean within-family \|rho\|, `train_loss` | 0.932 | 0.745 |
+| mean within-family \|rho\|, `train_accuracy` | 0.962 | 0.786 |
+| rank order perfect, `train_loss` / `train_accuracy` | 79.2% / 88.5% | 41.4% / 51.7% |
+| argmax disagreement, `train_loss` | **9.3%** | **48.3%** |
+| argmax disagreement, `train_accuracy` | **8.2%** | **41.4%** |
+| chance disagreement at this family size | 69.9% | 69.3% |
+| accuracy points at stake when they disagree | 0.56 / 0.40 | 6.39 / 6.28 |
+
+At epoch 1 the diagnostics are a near-perfect restatement of accuracy — they pick
+the same member 91% of the time against a 70% chance baseline, and the 9% of
+families where they differ are worth half an accuracy point. At epoch 10 they
+disagree on nearly half of families and the disagreements are worth 6+ points.
+Moving to epoch 1 removes the treatment.
+
+### Superseded figures
+
+An earlier pass reported 202 families / 200 GenFractalNet, 191/202 (95%) containing
+the best, 9% disagreement worth 0.25 points, and 41% / 6.5 points at epoch 10.
+The family counts came from a query **without** the `min_lr_ratio >= 2` constraint
+that the experiment's family definition carries; with it the pool is 183/181. The
+headroom figure is 172/183 (94.0%). The 41% at epoch 10 is the `train_accuracy`
+variant (`train_loss` gives 48.3%). None of the corrections change a conclusion,
+and the GenFractalNet share is 99% under either definition.
+
+### Verdict
+
+Epoch 1 with a fixed transform is inexpressible in `keep_same`, is one architecture
+lineage counted 183 ways, has nothing left to find in 94% of families, and removes
+the treatment it would be testing. It is not pursued.
+
+
+## 7r. The markov loop as host: assessment and pre-registered design
+
+The one-shot hyperparameter design is abandoned (§7m, §7q). The route that remains
+is `ab/gpt/act/markov/` — arXiv 2603.12091, "Resource-Efficient Iterative LLM-Based
+NAS with Feedback Memory": a closed LLM loop with no fine-tuning, a feedback memory
+capped at the last 5 attempts, and ~18 GPU-hours for ~1,200 iterations.
+
+### Why this host, stated precisely
+
+§7p found that `train_stat` encodes **proximity** to optimal, not direction toward it.
+For a one-shot choice among fixed options that is useless: knowing how close each
+option is adds nothing beyond its accuracy, which is already shown.
+
+Inside an iterative loop it is not useless, because the loop supplies the direction
+itself by probing. The claim is therefore:
+
+> **Proximity-to-optimal tells the prompt improver whether the current edit direction
+> is near-exhausted or worth pushing further.**
+
+It is *not* a step size over hyperparameters. This loop does not optimise
+hyperparameters at all — see the next subsection.
+
+### What this loop actually optimises (correction to an earlier framing)
+
+The LLM writes only the `Net` class. `lr = 0.01`, `batch_size = 128`, SGD with
+momentum 0.9, weight decay 5e-4 and a cosine schedule are fixed in
+`ab/gpt/act/markov/config.py` and `train_script.py`; the model never sees them and
+never sets them. The loop is NAS, not HPO, and its step is a code edit, not a
+numeric move. Any write-up must say so: carrying the "step size" framing over from
+the hyperparameter work would overstate what is being tested.
+
+### The extension point already exists, and the data is already discarded
+
+`train_script.py:336-344` records per-epoch `train_loss`, `train_acc`, `test_acc`.
+`evaluator.py:22` carries them as `EvaluationResult.train_history`, populated at
+`evaluator.py:134`. Then `get_feedback()` throws them away:
+
+```python
+# ab/gpt/act/markov/evaluator.py:24-28
+def get_feedback(self) -> str:
+    if self.success:
+        return f"Training successful. Test accuracy: {self.accuracy * 100:.2f}%"
+    else:
+        return f"Training failed with error: {self.error}"
+```
+
+So the control arm is the current code unmodified and the treatment is a strictly
+additive change at one call site, behind a flag alongside the three ablation flags
+the authors already provide (`use_prompt_improver`, `use_reference_code`,
+`use_history` in `config.py:42-45`). A fourth, `use_train_history`, is the natural
+form. Nothing existing changes behaviour when it is off.
+
+Two limits on what "the diagnostics" can mean here:
+
+* **Three fields, not seventeen.** `train_script.py` is a standalone loop with its
+  own CIFAR loaders. It never touches the LEMUR DB and computes no `gradient_norm`,
+  no `samples_per_second`, none of the other `train_stat` columns. The treatment is
+  `train_loss`, `train_acc`, `test_acc` per epoch unless that loop is instrumented.
+* **No `--seed` flag.** `LLMClient.__init__` takes `seed`, but it is never plumbed
+  from `PipelineConfig` or the CLI; `pipeline.py`'s `__main__` hard-codes 43. The
+  variance design below needs this plumbed (additive).
+
+### The three-epoch requirement, and why the published 71.5% is not our baseline
+
+`train_epochs` defaults to 1. At one epoch `train_history` has a single row, so
+**the treatment is empty** — there is no trajectory to show. The experiment requires
+`--epochs 3` (the flag already exists; no code change).
+
+That breaks comparability with every published number and with the committed run,
+both of which are one-epoch. **The control arm must be re-run at the same epoch
+count as the treatment.** The paper's 71.5% for Qwen2.5-7B, and the committed log's
+0.7238, are reference points for sanity only — not the baseline this experiment is
+measured against. The design carries the cost of both arms.
+
+### The committed baseline, measured
+
+`ab/gpt/act/markov/output/qwen2.5_7b_cifar10/` holds a real 1-epoch run, which fixes
+several design numbers that would otherwise be guesses:
+
+| quantity | value |
+|---|---|
+| iterations logged | 1,177 (2026-03-24 12:55 → 2026-03-25 07:02, 18.1 h wall) |
+| wall per iteration | ~55 s |
+| iterations that trained successfully | 555 (47%) |
+| best accuracy | 0.7238 |
+| mean best-so-far over budget (AUC/B) | 0.7090 |
+| iterations to 0.60 / 0.65 / 0.70 | 37 / 48 / 309 |
+| consecutive proposals byte-identical | 32.5% (346 of 1,065 adjacent pairs) |
+| median consecutive-proposal similarity | 0.9864 (64.8% >= 0.95) |
+
+Two consequences for the design, both from measurement rather than assumption.
+
+**Peak accuracy and AUC both compress.** AUC/B is 0.7090 against a best of 0.7238:
+the curve plateaus early (0.65 by iteration 48, 0.70 only at 309), so a
+budget-wide average has almost no dynamic range, and peak accuracy is a max
+statistic — maximally sensitive to one lucky iteration, which is the n=1 trap.
+Iterations-to-threshold at a high threshold has range: 309 of 1,177.
+
+**The waste the mechanism predicts is visible and large.** A third of consecutive
+proposals are byte-identical and two thirds are >= 0.95 similar. If proximity
+information tells the improver when a direction is exhausted, the rate of
+near-duplicate consecutive proposals should fall. That gives a pre-registered
+mechanism measure with a control value already in hand, independent of the
+accuracy outcome — the §7 pattern of testing the mechanism and not just the effect.
+
+### Metric: pre-registered before any run
+
+Both are reported; one is named primary.
+
+* **Primary — iterations to reach accuracy 0.70, and separately 0.75.** Speed, not
+  peak, is what a "when to stop / keep pushing" signal should move. Both thresholds
+  are fixed a priori from the committed 1-epoch run (0.70 reached at iteration 309,
+  0.7238 the best it ever reached), so neither is chosen after seeing 3-epoch
+  results. Runs that never reach a threshold are censored at the budget and counted
+  as budget-valued, which is conservative against the treatment.
+* **Secondary — best accuracy at the iteration budget** (the paper's metric, for
+  comparability) **and mean best-so-far over the budget** (AUC/B). Both are reported
+  whatever they show, with the compression above stated.
+* **Mechanism — rate of near-duplicate consecutive proposals** (similarity >= 0.95,
+  and the byte-identical rate separately), against the measured control values of
+  64.8% and 32.5%. A gain with no movement here is not evidence for the stated
+  mechanism, and will be reported as such.
+
+### Variance: one loop per arm is n = 1
+
+Unlike the family design there is no natural pairing, and §7n applies: whatever the
+statistic, it needs a control that holds constant what varies between runs. Two
+designs, in order of preference.
+
+**Primary — seed-paired replicates.** Run S seeds. Seed s gives a control run and a
+treatment run initialised with the same seed, the same initial prompt template and
+the same reference code, so the LLM's sampling stream and the first iteration are
+identical and the arms diverge only once the feedback string first differs. The
+statistic is the per-seed paired difference; report its mean, 95% CI over seeds and
+`d_z`. Seed-demeaning is the analogue of the family-demeaning used throughout §7.
+Requires the `--seed` plumbing noted above.
+
+Power, stated in advance so the result is not over-read (paired t, two-sided
+alpha = 0.05, 80% power, exact noncentral t):
+
+| seeds S | 6 | 8 | 10 | 15 | 20 | 30 |
+|---|---|---|---|---|---|---|
+| `d_z` detectable | 1.44 | 1.16 | 1.00 | 0.78 | 0.66 | 0.53 |
+
+**This design can detect only a large effect.** The family experiment's `d_z` was
+0.139; at any seed count affordable here that is invisible. Anything short of a
+large effect will be reported as inconclusive, not as a trend.
+
+**Secondary — fork-paired blocks, which is the stronger control.** Run one long
+control prefix, checkpoint the pipeline state (prompt template, current code and
+accuracy, `improvement_history`) at a set of pre-chosen iterations, and from each
+checkpoint fork two short runs — control and treatment — over a fixed horizon.
+Both start from *identical* state, so this holds constant everything seed-pairing
+only holds constant at iteration 1, and it answers the mechanism question directly:
+given the same current state, does seeing the trajectory produce a better next edit?
+It also yields many pairs per GPU-hour. Blocks from one prefix are not independent,
+so the analysis is at prefix level, or blocks are clustered by prefix. It needs a
+state dump/load the pipeline does not have (additive, modest).
+
+**One confound to name.** The treatment prompt is longer than the control's by three
+numbers per epoch. A length-matched placebo arm (shuffled or constant trajectories)
+would separate information from context length. It triples cost; recorded as an
+option, not a requirement, with the length difference reported either way.
+
+### Cost: pending the timing run
+
+A 20-iteration timing run at `--epochs 1` and `--epochs 3`, splitting LLM time from
+training time per call site, fixes the per-iteration cost of a two-arm three-epoch
+design. The split decides how to buy power: only seeds increase n, so if training
+dominates, the block design becomes the cheaper way to get pairs; if LLM generation
+dominates, seeds and iterations cost nearly the same and the simple design wins.
+Driver: `out/timing/markov_timing.py` (gitignored; wraps `LLMClient.generate`,
+`Evaluator.quick_validate` and `Evaluator.train_and_evaluate` at runtime, changing
+no file under `ab/gpt/act/markov/`).
+
+Two operational costs found while setting the timing run up, both one-time and both
+worth knowing before the real run:
+
+* **Qwen2.5-7B-Instruct was not in the job cache** (`nn-gpt/.hf/hub` held only
+  deepseek-coder-7b-instruct-v1.5), a ~15 GB download. From the cluster this took
+  3.5 minutes (~73 MB/s), so it is not a real obstacle.
+* **CIFAR-10 is.** `train_script.py` fetches it through `torchvision.datasets.CIFAR10`
+  with `download=True` from `cs.toronto.edu`, which serves at **41.7 KB/s** measured
+  from inside a pod — ~68 minutes for 170 MB, against `training_timeout`'s 1800 s
+  default. The first timing attempt therefore recorded `train_eval = 1800.18 s` for
+  every iteration: the subprocess timed out mid-download and the next iteration
+  restarted it from zero. The dataset must be staged into the `--data-dir` before
+  the loop starts (a CPU-only prefetch job, so no GPU sits idle for an hour); it
+  then persists on the hostPath for every later run.
 
 ## 8. Files (all new; no existing file modified)
 

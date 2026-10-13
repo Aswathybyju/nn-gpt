@@ -1,0 +1,174 @@
+{
+  "_what": "Section 7q/7r measurements: the proposed epoch-1 grouping, and the committed markov baseline. Regenerated 2026-10-13 against db/ab.nn.db.",
+  "joinconf": {
+    "main_columns_ext": [
+      "task",
+      "dataset",
+      "metric",
+      "nn",
+      "epoch"
+    ],
+    "transform_supported": false,
+    "hyperparameter_value_column": null,
+    "max_uids_per_hp_triple": 4332,
+    "max_uids_per_hp_triple_cifar10": 4327
+  },
+  "family_pool": {
+    "_note": "min_lr_ratio >= 2.0 is part of the experiment family definition; the 202/787 figures drop it.",
+    "cifar10_epoch1": {
+      "cifar10_k2_lr1.0": {
+        "families": 787,
+        "genfractalnet": 713,
+        "genfractal_share": 0.906,
+        "other": [
+          "AlexNet",
+          "ComplexNet",
+          "MoE-hetero4-Alex-Dense-Air-Bag",
+          "MoE4Own-batch-00034-20260331-223020-f62719bc968c000eed8a2d0260f55cbb",
+          "alt-8594a1858b9d3b03c2bedd567728f67a",
+          "alt-nn1-72b43af86c372307f04b19c90d99e330",
+          "alt-nn2-daa23ef7a0f7fd14620fd12cff688a6b",
+          "edge-tmpl-7b-01b6223d88630211b5086f4c9d638ebf",
+          "edge-tmpl-7b-154df3b2c5876189c57e755845068424",
+          "edge-tmpl-7b-20b890b6efbe777fa73cba03168014fb",
+          "ga-mut-1017",
+          "ga-mut-1178"
+        ]
+      },
+      "cifar10_k2_lr2.0": {
+        "families": 604,
+        "genfractalnet": 534,
+        "genfractal_share": 0.8841,
+        "other": [
+          "AlexNet",
+          "ComplexNet",
+          "MoE-hetero4-Alex-Dense-Air-Bag",
+          "MoE4Own-batch-00034-20260331-223020-f62719bc968c000eed8a2d0260f55cbb",
+          "alt-8594a1858b9d3b03c2bedd567728f67a",
+          "alt-nn1-72b43af86c372307f04b19c90d99e330",
+          "alt-nn2-daa23ef7a0f7fd14620fd12cff688a6b",
+          "edge-tmpl-7b-01b6223d88630211b5086f4c9d638ebf",
+          "edge-tmpl-7b-154df3b2c5876189c57e755845068424",
+          "edge-tmpl-7b-20b890b6efbe777fa73cba03168014fb",
+          "ga-mut-1017",
+          "ga-mut-1178"
+        ]
+      },
+      "cifar10_k3_lr1.0": {
+        "families": 202,
+        "genfractalnet": 200,
+        "genfractal_share": 0.9901,
+        "other": [
+          "AlexNet",
+          "ComplexNet"
+        ]
+      },
+      "cifar10_k3_lr2.0": {
+        "families": 183,
+        "genfractalnet": 181,
+        "genfractal_share": 0.9891,
+        "other": [
+          "AlexNet",
+          "ComplexNet"
+        ]
+      }
+    },
+    "corpus_epoch1": {
+      "corpus_k3_lr1.0": {
+        "families": 221,
+        "genfractalnet": 201
+      },
+      "corpus_k3_lr2.0": {
+        "families": 202,
+        "genfractalnet": 182
+      }
+    }
+  },
+  "similarity": {
+    "epoch1_transform_fixed": {
+      "n_arch": 183,
+      "median": 0.9788,
+      "frac_ge_095": 0.6581,
+      "pairs": 16653
+    },
+    "epoch1_pool_rejected_7f": {
+      "n_arch": 183,
+      "median": 0.9788,
+      "frac_ge_095": 0.6581,
+      "pairs": 16653
+    },
+    "epoch10_pool_used": {
+      "n_arch": 29,
+      "median": 0.6051,
+      "frac_ge_095": 0.0887,
+      "pairs": 406
+    },
+    "_note": "epoch1_transform_fixed and epoch1_pool_rejected_7f returned the same 183 architectures -- the 2-field and 3-field pools coincide, so these are one pool, not two. Section 7l quoted 0.867/47% from a 25-architecture SAMPLE of this pool; the full 16,653 pairs give 0.9788/65.8%."
+  },
+  "headroom_epoch1": {
+    "n": 183,
+    "shown_contains_best": 172,
+    "frac_contains_best": 0.9399,
+    "ge_1pt": 9,
+    "ge_3pt": 3,
+    "max_gap_pts": 25.63
+  },
+  "redundancy_epoch1": {
+    "train_loss": {
+      "n": 183,
+      "mean_abs_rho": 0.9322,
+      "frac_rho_1": 0.7923,
+      "disagreements": 17,
+      "frac_disagree": 0.0929,
+      "chance_disagree": 0.6985,
+      "mean_pts_when_disagreeing": 0.563
+    },
+    "train_accuracy": {
+      "n": 183,
+      "mean_abs_rho": 0.9623,
+      "frac_rho_1": 0.8852,
+      "disagreements": 15,
+      "frac_disagree": 0.082,
+      "chance_disagree": 0.6985,
+      "mean_pts_when_disagreeing": 0.399
+    }
+  },
+  "redundancy_epoch10": {
+    "train_loss": {
+      "n": 29,
+      "mean_abs_rho": 0.7448,
+      "frac_rho_1": 0.4138,
+      "disagreements": 14,
+      "frac_disagree": 0.4828,
+      "chance_disagree": 0.6925,
+      "mean_pts_when_disagreeing": 6.385
+    },
+    "train_accuracy": {
+      "n": 29,
+      "mean_abs_rho": 0.7862,
+      "frac_rho_1": 0.5172,
+      "disagreements": 12,
+      "frac_disagree": 0.4138,
+      "chance_disagree": 0.6925,
+      "mean_pts_when_disagreeing": 6.28
+    }
+  },
+  "markov_committed_baseline": {
+    "median_consecutive_similarity": 0.9864,
+    "frac_ge_095": 0.6479,
+    "frac_identical": 0.3249,
+    "adjacent_pairs": 1065,
+    "iterations_logged": 1177,
+    "successes": 555,
+    "best_accuracy": 0.7238,
+    "auc_best_so_far": 0.709,
+    "iters_to_threshold": {
+      "0.6": 37,
+      "0.65": 48,
+      "0.7": 309
+    },
+    "_source": "ab/gpt/act/markov/output/qwen2.5_7b_cifar10 (1 epoch per iteration)",
+    "wall_hours": 18.1,
+    "seconds_per_iteration": 55
+  }
+}

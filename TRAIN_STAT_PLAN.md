@@ -2030,7 +2030,7 @@ fixed corpus — **a third independent instance of the section 7n hazard**, and 
 first outside the LEMUR database. The proximity premise does not get stronger
 when moved from a corpus to a search.
 
-### Open gate: headroom
+### The gate: headroom
 
 The deciding measurement. For a fixed architecture, the accuracy at the default
 `(lr = 0.01, momentum = 0.9)` that `train_script.py` hardcodes, against the best
@@ -2053,6 +2053,64 @@ largest default-to-best gap among those measured, the gap is stated with the
 result, and the arms are then run on that architecture alone. Selecting after
 seeing arm results, or quietly reporting the best of several architectures'
 arm comparisons, is not the same thing and is excluded.
+
+### Gate result: failed on all three architectures
+
+Optuna 4.4.0 TPE, seed 43, 30 trials each, three epochs per trial, CIFAR-10,
+`lr` in `[1e-5, 1]` log and `momentum` in `[0, 0.999)`. Zero failed trials
+anywhere. Artifact: `results/verification/hp_continuous_headroom.json`.
+
+| architecture | default | TPE best | **gap** | trials beating the default | best found at | within 1pt of own best at |
+|---|---|---|---|---|---|---|
+| `model_iter_1094` | 0.8199 | 0.8202 | **+0.03 pts** | 1 / 30 | trial 26 | trial 12 |
+| `model_iter_538` | 0.8173 | 0.8184 | **+0.11 pts** | 1 / 30 | trial 28 | trial 12 |
+| `model_iter_165` | 0.7932 | 0.7976 | **+0.44 pts** | 2 / 30 | trial 12 | trial 12 |
+
+**All three gaps are under one accuracy point, so the gate fails.** The largest
+is +0.44. Across 90 trials of a competent sampler, four beat a hardcoded default.
+
+**And there is a mechanism, which is why this is not simply bad luck.** Accuracy
+depends on `lr` and `momentum` almost only through the effective learning rate
+`lr / (1 - momentum)`. On `model_iter_1094` mean accuracy by effective-lr
+quintile runs 0.436 -> 0.746 -> **0.813** -> 0.769 -> 0.568, an inverted U
+peaking in `[0.041, 0.095]`. The default `(0.01, 0.9)` has effective lr
+**0.1000**, and the three TPE optima sit at **0.0847, 0.1093 and 0.1712** —
+bracketing it, from raw coordinates as different as `(0.0588, 0.306)` and
+`(0.0488, 0.553)`. The two-dimensional space is effectively one-dimensional, and
+`train_script.py`'s hardcoded default already sits on the peak.
+
+This is the same failure as sections 7m and 7q — no headroom — but established
+the hard way: a continuous space, a real optimiser, the true default rather than
+a nearest recorded neighbour, and a replicated explanation for *why* there is
+nothing to win rather than just the observation that there isn't.
+
+**Note on the corpus-wide version, which disagrees and is wrong.** A LEMUR query
+over architectures with >= 20 distinct `(lr, momentum)` settings reports a median
+gain of **+14.89 points** at epoch 3 (39 architectures), +11.57 at epoch 5, +14.25
+at epoch 10. That figure does not survive inspection. It substitutes the
+*nearest recorded setting* for the default, and the median distance of that
+substitute is 0.22 in normalised space. The architectures carrying the large
+gains are `MoE-*` variants that collapse to 0.22-0.47 accuracy at the substitute
+point and reach 0.75-0.84 at their best — fragility, not untapped tuning.
+`ResNet`, the one architecture whose recorded grid actually contains the true
+default (distance 0.04, 149-207 settings), gains **+0.78** at epoch 10, **+1.60**
+at epoch 3 and **+1.66** at epoch 5. The live measurement is the one to trust and
+the corpus figure is recorded here only so it is not quoted later.
+
+### Verdict on the hyperparameter variant
+
+Not built. The loop structure fits the mechanism better than anything else
+considered (the step-size reading above is the cleanest the proximity result has
+had), the engineering is cheap and mostly additive, and the cost per observation
+is 3-4x better than the architecture loop. None of that matters against a ceiling
+of +0.44 accuracy points: there is no room for a treatment effect to exist in,
+let alone be detected at `d_z` = 1.0.
+
+What is kept: `ab/gpt/act/markov_hp/train_hp.py`, the pre-registered mechanism
+and its falsification clause, the timing decomposition, and the finding that the
+`(lr, momentum)` space collapses to effective learning rate. The last of these is
+the reusable result — it says any future hyperparameter work on this corpus must
+either search more than two dimensions or search something other than SGD's.
 
 ## 8. Files (all new; no existing file modified)
 

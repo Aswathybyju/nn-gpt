@@ -1,0 +1,76 @@
+{
+  "_what": "Section 7s open gate: continuous-space headroom over the hardcoded default (lr=0.01, momentum=0.9), per architecture, 3 epochs, Optuna TPE (optuna 4.4.0, seed 43), 30 trials each, CIFAR-10. Measured 2026-10-13.",
+  "search_space": {
+    "lr": "[1e-5, 1] log",
+    "momentum": "[0, 0.999)"
+  },
+  "per_architecture": [
+    {
+      "model": "model_iter_1094.py",
+      "default_accuracy": 0.8199,
+      "tpe_best": 0.8202,
+      "gap_pts": 0.03,
+      "best_params": {
+        "lr": 0.05875731273917016,
+        "momentum": 0.306337519492092
+      },
+      "best_effective_lr": 0.0847,
+      "default_effective_lr": 0.1,
+      "best_found_at_trial": 26,
+      "trials_beating_default": 1,
+      "n_trials": 30,
+      "failed_trials": 0,
+      "within_1pt_of_own_best_at_trial": 12,
+      "median_trial_seconds": 41.47,
+      "test1_epoch1_trainloss_vs_final_accuracy": -0.8825,
+      "test2_final_trainloss_vs_distance": 0.8616,
+      "test2_final_after_removing_accuracy": -0.0965,
+      "test2_epoch1_after_removing_accuracy": -0.3163
+    },
+    {
+      "model": "model_iter_538.py",
+      "default_accuracy": 0.8173,
+      "tpe_best": 0.8184,
+      "gap_pts": 0.11,
+      "best_params": {
+        "lr": 0.048830136707540536,
+        "momentum": 0.553213358682525
+      },
+      "best_effective_lr": 0.1093,
+      "default_effective_lr": 0.1,
+      "best_found_at_trial": 28,
+      "trials_beating_default": 1,
+      "n_trials": 30,
+      "failed_trials": 0,
+      "within_1pt_of_own_best_at_trial": 12,
+      "median_trial_seconds": 40.94,
+      "test1_epoch1_trainloss_vs_final_accuracy": -0.8643,
+      "test2_final_trainloss_vs_distance": 0.9293,
+      "test2_final_after_removing_accuracy": 0.3006,
+      "test2_epoch1_after_removing_accuracy": 0.2233
+    },
+    {
+      "model": "model_iter_165.py",
+      "default_accuracy": 0.7932,
+      "tpe_best": 0.7976,
+      "gap_pts": 0.44,
+      "best_params": {
+        "lr": 0.05536595210128011,
+        "momentum": 0.6765676891407256
+      },
+      "best_effective_lr": 0.1712,
+      "default_effective_lr": 0.1,
+      "best_found_at_trial": 22,
+      "trials_beating_default": 2,
+      "n_trials": 30,
+      "failed_trials": 0,
+      "within_1pt_of_own_best_at_trial": 12,
+      "median_trial_seconds": 24.16,
+      "test1_epoch1_trainloss_vs_final_accuracy": -0.8932,
+      "test2_final_trainloss_vs_distance": 0.7802,
+      "test2_final_after_removing_accuracy": -0.1086,
+      "test2_epoch1_after_removing_accuracy": -0.1003
+    }
+  ],
+  "verdict": "all three gaps are under one accuracy point (max +0.44); the gate written in advance in section 7s has failed"
+}

@@ -1727,6 +1727,15 @@ wider. The primary analysis uses **prefix-clustered standard errors**, the naive
 paired interval is reported alongside it, and the effective sample size is stated
 as lying between 3 and 24 rather than asserted to be 24.
 
+`ab/gpt/util/markov_fork_analysis.py` implements this and was written before any
+fork ran, so the statistics and the drop rule are fixed in code rather than in
+prose. It prints three intervals for every statistic — naive paired over all
+pairs, paired over the P prefix-level means, and CR1 cluster-robust with prefix
+as the cluster. On a synthetic set of 24 pairs carrying an injected +0.010
+effect, the naive interval was [+0.0071, +0.0140] and the clustered one
+[+0.0022, +0.0189]: **2.7x wider**. That ratio is the size of the mistake that
+quoting the naive interval would make, and it is why all three are printed.
+
 ### The determinism penalty is zero for training — the premise was wrong
 
 `cudnn.enabled = False` would indeed slow training, but it never reaches
@@ -1808,6 +1817,7 @@ worth knowing before the real run:
 | `ab/gpt/util/hp_family_secondary.py` | exploratory analyses (not pre-registered) |
 | `ab/gpt/util/markov_fork.py` | markov state save/load; `train_history` feedback renderer (section 7r) |
 | `ab/gpt/act/markov/fork_pair.py` | fork-paired driver: `--self-test`, `--prefix`, `--forks` |
+| `ab/gpt/util/markov_fork_analysis.py` | pre-registered fork analysis (written before any run) |
 
 Within each pair the configs differ in exactly one key,
 `hp_family.show_diagnostics`; prompt bodies and all selection keys are

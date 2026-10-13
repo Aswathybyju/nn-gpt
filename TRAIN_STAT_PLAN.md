@@ -1803,6 +1803,153 @@ worth knowing before the real run:
   the loop starts (a CPU-only prefetch job, so no GPU sits idle for an hour); it
   then persists on the hostPath for every later run.
 
+## 7s. The hyperparameter variant of the loop, and its pre-registered mechanism
+
+The markov loop as written is architecture search: the LLM writes the `Net` class
+while `lr`, `batch_size`, momentum and the schedule are fixed in `config.py` and
+`train_script.py` and never shown to it (section 7r). The variant that keeps the
+loop and answers the hyperparameter question instead is: **the LLM proposes
+`(lr, momentum)` each iteration with the architecture held fixed.** Only the
+output changes; propose -> train -> observe -> propose again is untouched.
+
+### Why the mechanism maps directly here, and did not before
+
+Section 7p measured that `train_stat` encodes **proximity** to optimal, not
+direction toward it. In a loop over two continuous parameters that is exactly a
+step-size signal — *that was close, try nearby* against *that was far, move
+further*. In the architecture loop the step is a code edit, so proximity could
+only inform how hard to push a direction found some other way; over `(lr,
+momentum)` the signal and the action are in the same space. This is the
+cleanest fit the mechanism has had, and it is the reason to prefer this variant
+over the one in section 7r.
+
+### Pre-registered mechanism: step size against trial quality
+
+Fixed before any run. Search space normalised so both axes are comparable:
+
+```
+u_hat = (log10(lr) + 5) / 5        lr in [1e-5, 1]      -> [0, 1]
+v_hat = momentum / 0.999           momentum in [0, 1)   -> [0, 1]
+step s_t = euclidean distance between (u_hat, v_hat) at trial t and t+1
+```
+
+Trial quality uses only what the model has actually been shown, so it is the
+improvement over the incumbent rather than distance to a best not yet known:
+
+```
+q_t = accuracy_t - max(accuracy_1 .. accuracy_{t-1})
+```
+
+**Prediction.** Within a run, the Spearman correlation between `q_t` and the step
+taken *after* seeing trial t, `rho(q_t, s_t)`, is **negative** in the treatment
+arm: a near-optimal trial is followed by a smaller step, a poor one by a larger
+step. The primary mechanism statistic is the mean within-run `rho`, treatment
+minus control, paired by seed.
+
+Per the section 7n rule this is computed **within run and then paired**, never by
+pooling trials across runs — pooling would mix between-run differences in
+trial quality into a within-run claim, which is the error 7n records three times.
+Both components (`|Δu_hat|` and `|Δv_hat|`) are reported separately as well,
+since lr and momentum need not behave alike.
+
+**Falsification, stated in advance.** If the treatment arm's `rho` is not more
+negative than the control's — no smaller steps after near-optimal trials, no
+larger steps after poor ones — then **an accuracy gain is not evidence for the
+stated mechanism**, and will be reported as an unexplained gain. The converse
+also holds and remains interpretable: step-size behaviour moving as predicted
+without an accuracy gain separates "the signal is inert" from "the signal is
+used but does not pay inside this budget".
+
+**The redundancy target carries over, in its continuous form.** The architecture
+loop's byte-identical re-proposal rate (32.5%, section 7r) becomes the rate of
+steps with `s_t < 0.01` — re-proposing essentially the same point. It is
+pre-registered the same way, with the control arm supplying its own baseline
+since no committed run exists for this variant.
+
+### What the pipeline assumes about code output
+
+An honest component-by-component estimate, not a plan.
+
+| component | survives? |
+|---|---|
+| `pipeline.py` — `run`, `run_iteration`, best tracking, 5-entry feedback memory | **unchanged.** The loop is agnostic: generate -> extract -> validate -> evaluate -> improve. Reusable by subclassing and overriding the four lazy component properties, plus reassigning `self._code_extractor` (one line — that one is not lazy) |
+| `evaluator.get_feedback` and `markov_fork.render_train_history` | **unchanged** |
+| `code_extractor.py` | **replaced.** `extract()` splits ```python fences, then `ast.parse`, then checks `class Net` / `nn.Module` / `__init__` / `forward`. All of it is wrong for two numbers; a JSON parse is ~40 lines |
+| `Evaluator.quick_validate` | **replaced.** Currently execs the code, instantiates `Net`, runs a forward pass. Becomes a range check (`lr > 0`, `momentum` in `[0, 1)`), ~15 lines, and its cost goes to zero |
+| `code_generator.py` prompt template; `prompt_improver.py`'s three templates | **rewritten as text** (~150 lines of prompt). The improver's JSON parser is reused as is |
+| `train_script.py` | optimiser line hardcodes `momentum=0.9`. Not modified: `ab/gpt/act/markov_hp/train_hp.py` imports its loaders, epoch loop, evaluation and seeding and adds `--momentum`, so the training code is literally the same and timings stay comparable |
+
+Also noted while reading: `ab/gpt/act/markov/structural_check.py` is dead code —
+defined, imported by nothing.
+
+### Cost: the dominant term changes by a factor of 50
+
+Measured with the Qwen2.5-7B tokenizer on the actual outputs:
+
+| | tokens |
+|---|---|
+| architecture-loop output, 20-iteration timing run | median **1,273** |
+| architecture-loop output, committed 1,177-iteration run | median **1,853** (max 2,045 — often at the 2,048 cap) |
+| a hyperparameter proposal, `{"lr": 0.0234, "momentum": 0.87}` | **25** |
+| the per-epoch trajectory block, 3 epochs | 104 |
+
+At 42.95s median for ~1,273 tokens, generation decodes at **~33.7 ms/token** and
+is almost entirely decode cost, so 25 tokens instead of 1,273 takes it from ~43s
+to **~1-2s**.
+
+| | architecture loop (measured) | hyperparameter variant (estimated) |
+|---|---|---|
+| generation | 42.95s | ~1.5s |
+| improver | 19.42s | ~19s, or ~6s if the prompt asks for terse output |
+| validation | 0.01s | ~0 |
+| training, 3 epochs | 24.0s | 24.0s |
+| iterations that reach training | **12 of 20 (60%)** | ~100% — two numbers cannot fail structural validation |
+| **per useful observation** | **~123s** | **~30-45s** |
+
+### Consequence: seeds, not forks
+
+Two continuous dimensions converge in tens of trials, not hundreds, so a run
+budget of ~80 iterations is plausible against the architecture loop's 1,177. At
+that budget there is **no horizon to fork into** — forking at 25/50/100/150 would
+leave blocks longer than what remains — so the fork-paired design of section 7r,
+whose whole advantage was many pairs from a shared prefix, loses its rationale
+here. Seed-pairing instead becomes affordable at a useful count:
+
+| seeds S | 10 | 20 |
+|---|---|---|
+| iterations (2 arms x 80) | 1,600 | 3,200 |
+| GPU-hours at ~35s/iteration | **~16** | **~31** |
+| `d_z` detectable at 80% power | 1.00 | 0.66 |
+
+The fork infrastructure built in section 7r is therefore held, not deleted: it is
+correct for the architecture loop and may still be wanted there.
+
+### Optuna is context, not the opponent
+
+Optuna's TPE is strong on two continuous dimensions, and the honest claim is
+**arm versus arm** — do the diagnostics help the LLM converge faster than no
+diagnostics — with Optuna reported as the reference point for what a dedicated
+optimiser achieves on the same budget. Nothing measured so far suggests an LLM
+would beat it outright, and the design should not be built as though it might.
+
+There is one asymmetry worth stating, because it is the only structural advantage
+the LLM arm has: **Optuna sees a single scalar per trial.** The per-epoch
+trajectory — the thing section 7p showed carries proximity information — is
+information TPE structurally cannot consume. Whether a 7B model can use what a
+dedicated optimiser cannot see is a sharper question than whether it can
+out-search one, and it is the question this variant actually tests.
+
+### Open gate: headroom
+
+The deciding measurement. For a fixed architecture, the accuracy at the default
+`(lr = 0.01, momentum = 0.9)` that `train_script.py` hardcodes, against the best
+an Optuna TPE search finds over `lr` in `[1e-5, 1]` (log) and `momentum` in
+`[0, 0.999)`, and the number of trials that search needed. **If the gap is under
+one accuracy point, this variant fails the way the discrete version did in
+sections 7m and 7q — in a continuous space rather than a menu — and should not be
+built.** Driver: `out/timing/hp_headroom_live.py` over
+`ab/gpt/act/markov_hp/train_hp.py`.
+
 ## 8. Files (all new; no existing file modified)
 
 | file | role |
@@ -1818,6 +1965,7 @@ worth knowing before the real run:
 | `ab/gpt/util/markov_fork.py` | markov state save/load; `train_history` feedback renderer (section 7r) |
 | `ab/gpt/act/markov/fork_pair.py` | fork-paired driver: `--self-test`, `--prefix`, `--forks` |
 | `ab/gpt/util/markov_fork_analysis.py` | pre-registered fork analysis (written before any run) |
+| `ab/gpt/act/markov_hp/train_hp.py` | fixed architecture under a proposed `(lr, momentum)`; reuses `train_script`'s loaders and epoch loop (section 7s) |
 
 Within each pair the configs differ in exactly one key,
 `hp_family.show_diagnostics`; prompt bodies and all selection keys are

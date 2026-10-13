@@ -1760,6 +1760,41 @@ Consequences:
   so its generation timings are the lower bound and the measured penalty is added
   to them.
 
+### Three epochs costs +9%, so the trajectory requirement is nearly free
+
+The timing run completed both legs, 20 iterations each, with the instrumented
+phases covering 96% and 99% of wall clock:
+
+| phase (median) | 1 epoch | 3 epochs |
+|---|---|---|
+| `llm_codegen` | 42.95s (20 calls) | 36.43s (20) |
+| `llm_improver` | 19.42s (19) | 20.56s (19) |
+| `train_eval` | **12.93s** (12) | **24.29s** (17) |
+| `validate` | 0.01s | 0.05s |
+| LLM share of measured | **89%** | **74%** |
+| wall per iteration | **74.0s** | **80.9s** |
+
+Training decomposes to a **7.25s fixed cost per call** (data load, model
+instantiation, final evaluation) plus **5.68s per epoch**:
+`7.25 + 3 x 5.68 = 24.29`, matching the measurement.
+
+So moving the architecture loop from one epoch to three costs **+9% per
+iteration**, because generation dominates and is unaffected. **The cost objection
+to the trajectory requirement does not survive**: section 7r's three-epoch
+requirement, which looked like it would double the price of the design, is close
+to free. That holds should this variant ever be returned to.
+
+The reverse is what makes the hyperparameter variant a different problem: once
+generation collapses to ~1.5s (section 7s), the same 5.68s per epoch becomes the
+dominant term rather than a rounding error.
+
+Caveat on transferring `train_eval` to other architectures: 24.29s is for the
+models this loop generated. The headroom measurement's fixed architecture
+(`model_iter_1094`, the committed run's best) takes **~41s** for the same three
+epochs, so per-trial training cost in the hyperparameter variant depends on which
+architecture is held fixed and must be measured for the one chosen, not carried
+across.
+
 ### Acknowledged confound: prompt length
 
 The treatment prompt is longer than the control's by three numbers per epoch. A
@@ -1811,6 +1846,26 @@ while `lr`, `batch_size`, momentum and the schedule are fixed in `config.py` and
 loop and answers the hyperparameter question instead is: **the LLM proposes
 `(lr, momentum)` each iteration with the architecture held fixed.** Only the
 output changes; propose -> train -> observe -> propose again is untouched.
+
+### The claim, in its strongest form
+
+Optuna's TPE is strong on two continuous dimensions and an LLM is not expected to
+out-search it. But **TPE consumes one scalar per trial — the final accuracy — and
+structurally cannot see the per-epoch trajectory.** That trajectory is exactly
+what section 7p showed carries proximity information. So the question this
+variant asks is not
+
+> can a 7B model out-search a dedicated optimiser
+
+which it probably cannot, but
+
+> **can a 7B model use information a dedicated optimiser cannot see.**
+
+That is the strongest version of this project's claim, and the whole of the
+design below exists to test it. Optuna appears throughout as the reference point
+for what a scalar-only optimiser achieves on the same budget — context, not the
+opponent. The comparison that carries the result is arm versus arm: the same
+loop, with and without the trajectory in its feedback.
 
 ### Why the mechanism maps directly here, and did not before
 
@@ -1924,20 +1979,28 @@ here. Seed-pairing instead becomes affordable at a useful count:
 The fork infrastructure built in section 7r is therefore held, not deleted: it is
 correct for the architecture loop and may still be wanted there.
 
-### Optuna is context, not the opponent
+### A free mechanism check on the optimiser itself
 
-Optuna's TPE is strong on two continuous dimensions, and the honest claim is
-**arm versus arm** — do the diagnostics help the LLM converge faster than no
-diagnostics — with Optuna reported as the reference point for what a dedicated
-optimiser achieves on the same budget. Nothing measured so far suggests an LLM
-would beat it outright, and the design should not be built as though it might.
+The asymmetry above is testable without running either arm, because every Optuna
+trial in the headroom measurement records its own per-epoch trajectory while TPE
+sees only the scalar. Two non-circular tests, per architecture, within
+architecture and never pooled (section 7n):
 
-There is one asymmetry worth stating, because it is the only structural advantage
-the LLM arm has: **Optuna sees a single scalar per trial.** The per-epoch
-trajectory — the thing section 7p showed carries proximity information — is
-information TPE structurally cannot consume. Whether a 7B model can use what a
-dedicated optimiser cannot see is a sharper question than whether it can
-out-search one, and it is the question this variant actually tests.
+1. **Early information.** Do epoch-1 *train-side* features alone — `train_loss`,
+   `train_acc`, never `test_acc`, which would leak the objective — rank the
+   trials the way the final accuracy does? If they do, a third of each trial's
+   cost already carries most of the signal, and TPE is waiting for a scalar it
+   could have largely predicted.
+2. **Proximity beyond the scalar**, the section 7p question put to a search
+   rather than a fixed corpus. Does the trajectory say how *far* a setting is
+   from the optimum, over and above how *good* it is? Spearman of a trajectory
+   feature against distance to the best-found `(lr, momentum)`, then the same
+   correlation with final accuracy rank-residualised out of both sides. What
+   survives residualisation is proximity information the scalar does not contain.
+
+**If that information is present and demonstrably unused, it is the clearest
+motivation the experiment can have** — and if it is absent, the premise is dead
+before either arm runs. Driver: `out/timing/trajectory_vs_tpe.py`.
 
 ### Open gate: headroom
 
@@ -1949,6 +2012,19 @@ one accuracy point, this variant fails the way the discrete version did in
 sections 7m and 7q — in a continuous space rather than a menu — and should not be
 built.** Driver: `out/timing/hp_headroom_live.py` over
 `ab/gpt/act/markov_hp/train_hp.py`.
+
+**Reported per architecture, never pooled**, as: the default accuracy, the TPE
+best, the gap, and which trial found the best. A pool would hide the case that
+matters — one architecture with no headroom beside another with three points is
+not a uniform verdict, and the median across architectures would answer neither.
+
+**Selection rule, fixed before the arms run.** Choosing the fixed architecture
+for the experiment on the basis of measured headroom is legitimate *only* because
+it is decided and written here first: the architecture is the one with the
+largest default-to-best gap among those measured, the gap is stated with the
+result, and the arms are then run on that architecture alone. Selecting after
+seeing arm results, or quietly reporting the best of several architectures'
+arm comparisons, is not the same thing and is excluded.
 
 ## 8. Files (all new; no existing file modified)
 

@@ -1656,7 +1656,95 @@ checkable. For that to hold the real runs must use the determinism settings
 to.
 
 **Recommendation: build it.** A day against a design that otherwise cannot see
-anything smaller than `d_z` = 1.0 is worth paying.
+anything smaller than `d_z` = 1.0 is worth paying. Built as two new files, so no
+file under `ab/gpt/act/markov/` changes: `ab/gpt/util/markov_fork.py` (state
+save/load, read and written from outside through plain attribute access, plus the
+feedback renderer) and `ab/gpt/act/markov/fork_pair.py` (the driver, with
+`--self-test` for the exactness check). The treatment is installed by wrapping
+`EvaluationResult.get_feedback` in the driver process only; the production form
+is a flag-gated branch inside `get_feedback` beside the existing ablation flags,
+which touches an existing file and is held pending approval.
+
+### Fork schedule, horizon and count — fixed before the first run
+
+**The fork statistic cannot be improvement in best-so-far.** The committed run
+improves its best only **21 times in 1,177 iterations**, at iterations 1, 8,
+36-48 (seven times), 68, 103, 108, 165, 279, 309, 359, 362, 415, 538 and 1094:
+
+| iteration | 1 | 50 | 100 | 200 | 309 | 500 | 800 | 1177 |
+|---|---|---|---|---|---|---|---|---|
+| best so far | 0.4840 | 0.6531 | 0.6641 | 0.6971 | 0.7015 | 0.7223 | 0.7236 | 0.7238 |
+
+Over a horizon of a few dozen iterations, "did the best-so-far improve" is zero
+in both arms for nearly every fork, which would give no power at any pair count.
+The primary fork statistic is therefore **the maximum accuracy reached inside the
+horizon**, which is defined on every fork that trains anything at all.
+
+| | pre-registered value |
+|---|---|
+| prefixes P | 3, seeds 43 / 44 / 45, each a control-arm run to iteration 400 |
+| fork points | 25, 50, 100, 150, 200, 275, 350, 400 |
+| horizon H | 25 iterations per arm |
+| pairs | P x 8 = **24** |
+| primary | max accuracy reached inside the horizon |
+| secondary | mean accuracy of trainable proposals in the horizon |
+| mechanism | near-duplicate consecutive-proposal rate (>= 0.95; byte-identical) |
+
+Why these points. The baseline's improvement is concentrated before iteration
+200 (0.484 -> 0.697) and nearly flat after 309 (+0.027 over 868 iterations), so
+four points at or below 150 sit in the exploration region and four from 200 to
+400 straddle and follow the plateau — which is what tests whether the signal
+helps differently during exploration than during refinement. Iteration 25 is the
+earliest point that is not degenerate: fork much earlier and the state is barely
+shaped by any history, and the comparison collapses back to seed-pairing.
+Iteration 400 is the latest that keeps the shared prefix affordable at three
+prefixes.
+
+Why H = 25. The trainable rate swings widely across the committed run — 0.74,
+0.39, 0.67, 0.27, 0.17, 0.60 over successive 200-iteration blocks — so a
+25-iteration horizon yields roughly 4 to 18 trainable proposals per arm. **A pair
+in which either arm trains nothing is dropped and the number dropped is
+reported**; that rule is fixed now rather than after seeing how many there are.
+
+**Detectable effect, stated as for the family design** (paired t, two-sided
+alpha = 0.05, 80% power):
+
+| pairs | 12 | 16 | **24** | 32 | 48 |
+|---|---|---|---|---|---|
+| `d_z` detectable | 0.89 | 0.75 | **0.60** | 0.51 | 0.41 |
+
+So 24 pairs reach `d_z` = 0.60 — better than seed-pairing at any affordable S,
+and still a medium-to-large effect. One honest caveat, pre-registered rather than
+discovered: the eight pairs from one prefix are not independent of each other.
+Pairing removes the prefix's *level* from each difference, so the shared prefix
+does not bias a pair; it correlates pairs, which narrows intervals that should be
+wider. The primary analysis uses **prefix-clustered standard errors**, the naive
+paired interval is reported alongside it, and the effective sample size is stated
+as lying between 3 and 24 rather than asserted to be 24.
+
+### The determinism penalty is zero for training — the premise was wrong
+
+`cudnn.enabled = False` would indeed slow training, but it never reaches
+training. The four settings are applied in `pipeline.py`'s `__main__`
+(`pipeline.py:478-481`), i.e. in the **parent** process. Training runs in a fresh
+interpreter launched by `subprocess.run` (`evaluator.py:102-115`), which inherits
+environment variables but no Python state, and `train_script.py`'s own
+`set_all_seeds` sets **only** `cudnn.deterministic = True` and
+`benchmark = False` (`train_script.py:36-37`) — never
+`use_deterministic_algorithms` and never `cudnn.enabled = False`.
+
+Consequences:
+
+* **Training throughput is identical with and without the determinism settings**,
+  and identical to the committed baseline, which ran with the same two
+  subprocess-side flags. The timing run's `train_eval` numbers transfer directly.
+* The only penalty is on **LLM generation in the parent**, where cuDNN is barely
+  used (transformers inference goes through cuBLAS and SDPA). That is measured as
+  a generation-side number and folded into the `llm_codegen` and `llm_improver`
+  components, not into the training component.
+* The timing driver sets `cudnn.deterministic`/`benchmark` but not the other two,
+  so its generation timings are the lower bound and the measured penalty is added
+  to them.
 
 ### Acknowledged confound: prompt length
 
@@ -1713,6 +1801,8 @@ worth knowing before the real run:
 | `ab/gpt/act/alter/hp_family.py` | generation-only entry point (`--dry-run`) |
 | `ab/gpt/util/hp_family_analysis.py` | pre-registered paired analysis |
 | `ab/gpt/util/hp_family_secondary.py` | exploratory analyses (not pre-registered) |
+| `ab/gpt/util/markov_fork.py` | markov state save/load; `train_history` feedback renderer (section 7r) |
+| `ab/gpt/act/markov/fork_pair.py` | fork-paired driver: `--self-test`, `--prefix`, `--forks` |
 
 Within each pair the configs differ in exactly one key,
 `hp_family.show_diagnostics`; prompt bodies and all selection keys are

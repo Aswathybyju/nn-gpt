@@ -17,7 +17,12 @@ Why a checkpoint is exact here, and not approximate:
 * ``Pipeline``'s entire mutable state is the eleven JSON-serialisable attributes
   in ``PIPELINE_STATE`` (``pipeline.py:48-61``) -- no tensors, no handles.
 * ``CodeGenerator`` holds mirrors of four of them, restored through its own
-  ``update_*`` setters.
+  ``update_*`` setters -- belt and braces only: ``CodeGenerator.generate`` reads
+  its *arguments* (``improvement_suggestions or ...``, ``current_code or ...``)
+  and never ``self.current_code`` / ``self.improvement_suggestions`` /
+  ``self.prompt_template``, and the pipeline passes those from its own
+  attributes on every call. The mirrors are dead state, so ``PIPELINE_STATE``
+  alone is a complete checkpoint.
 * The RNG is described by two integers: ``LLMClient`` seeds every call as
   ``self.seed + self._call_counter`` (``llm_client.py:58-69``).
 
@@ -118,6 +123,11 @@ def load_state(pipeline, path, *, strict_config: bool = True) -> dict:
 # the treatment: show the per-epoch trajectory in the improver's feedback
 # --------------------------------------------------------------------------
 
+# losses get 4 decimals, accuracies (percentages) 2 -- this text goes into the
+# prompt, and the treatment arm's extra length is an acknowledged confound
+_DECIMALS = {'train_loss': 4, 'test_loss': 4, 'train_acc': 2, 'test_acc': 2}
+
+
 def render_train_history(history, fields=('train_loss', 'train_acc', 'test_acc')) -> str:
     """One line per epoch, in the order the epochs ran.
 
@@ -130,7 +140,10 @@ def render_train_history(history, fields=('train_loss', 'train_acc', 'test_acc')
     lines = ['Per-epoch training history:']
     for row in history:
         parts = [f'epoch {row.get("epoch")}']
-        parts += [f'{f}={row[f]:.4f}' for f in fields if isinstance(row.get(f), (int, float))]
+        for f in fields:
+            v = row.get(f)
+            if isinstance(v, (int, float)):
+                parts.append(f'{f}={v:.{_DECIMALS.get(f, 4)}f}')
         lines.append('  ' + ', '.join(parts))
     return '\n'.join(lines)
 

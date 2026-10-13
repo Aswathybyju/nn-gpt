@@ -1638,7 +1638,12 @@ iteration, results_history, improvement_history, pending_history_entry
 
 `CodeGenerator` holds mirrors of four of them, restored by the two existing
 `update_improvement_suggestions` / `update_current_code_and_accuracy` setters, so
-nothing new is needed there. The RNG is the part that would normally make
+nothing new is needed there — and in fact nothing is needed at all: `generate`
+reads its *arguments*, never `self.current_code`, `self.improvement_suggestions`
+or `self.prompt_template`, and the pipeline passes those from its own attributes
+on every call. The mirrors are dead state, which makes `PIPELINE_STATE` a
+complete checkpoint on its own; they are restored anyway, as belt and braces.
+The RNG is the part that would normally make
 checkpointing hard, and here it does not: `LLMClient` seeds each call as
 `self.seed + self._call_counter` (`llm_client.py:58-69`), so the sampling stream
 is fully described by **two integers**. A checkpoint is those eleven attributes

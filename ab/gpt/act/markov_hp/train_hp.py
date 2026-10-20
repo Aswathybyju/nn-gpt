@@ -56,19 +56,46 @@ def main() -> int:
     p.add_argument('--data_dir', default='./data')
     p.add_argument('--dataset', default='cifar10', choices=sorted(_LOADERS))
     p.add_argument('--scheduler', default='cosine', choices=('cosine', 'none'))
+    p.add_argument('--eta_min', type=float, default=0.0,
+                   help='CosineAnnealingLR floor; 0.0 is the PyTorch default')
+    p.add_argument('--nesterov', action='store_true',
+                   help='SGD only; forced off when momentum == 0 or dampening != 0, '
+                        'which PyTorch rejects')
+    p.add_argument('--dampening', type=float, default=0.0)
+    p.add_argument('--label_smoothing', type=float, default=0.0)
+    p.add_argument('--optimizer', default='sgd', choices=('sgd', 'adamw'),
+                   help="'adamw' ignores momentum/nesterov/dampening and uses "
+                        'beta1/beta2 instead')
+    p.add_argument('--beta1', type=float, default=0.9)
+    p.add_argument('--beta2', type=float, default=0.999)
     p.add_argument('--seed', type=int, default=SEED,
                    help='model init and training RNG; the data loader order is '
                         'pinned to train_script.SEED and does not follow this')
     a = p.parse_args()
+
+    # PyTorch raises for nesterov without momentum or with dampening; record the
+    # override rather than letting the trial fail, so the search sees a result
+    nesterov = a.nesterov
+    forced = False
+    if nesterov and (a.momentum == 0 or a.dampening != 0):
+        nesterov, forced = False, True
 
     result = {'success': False, 'accuracy': 0.0, 'error': None,
               'train_history': [],
               'hyperparameters': {'lr': a.lr, 'momentum': a.momentum,
                                   'weight_decay': a.weight_decay,
                                   'batch_size': a.batch_size,
-                                  'epochs': a.epochs, 'seed': a.seed}}
+                                  'epochs': a.epochs, 'seed': a.seed,
+                                  'optimizer': a.optimizer,
+                                  'nesterov': nesterov,
+                                  'nesterov_forced_false': forced,
+                                  'dampening': a.dampening,
+                                  'label_smoothing': a.label_smoothing,
+                                  'scheduler': a.scheduler,
+                                  'eta_min': a.eta_min,
+                                  'beta1': a.beta1, 'beta2': a.beta2}}
     try:
-        if not 0.0 <= a.momentum < 1.0:
+        if a.optimizer == 'sgd' and not 0.0 <= a.momentum < 1.0:
             raise ValueError(f'momentum must be in [0, 1), got {a.momentum}')
         if a.lr <= 0:
             raise ValueError(f'lr must be positive, got {a.lr}')
@@ -86,10 +113,17 @@ def main() -> int:
         train_loader, test_loader = _LOADERS[a.dataset](
             batch_size=a.batch_size, data_dir=a.data_dir)
 
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=a.lr, momentum=a.momentum,
-                              weight_decay=a.weight_decay)
-        scheduler = (optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=a.epochs)
+        criterion = nn.CrossEntropyLoss(label_smoothing=a.label_smoothing)
+        if a.optimizer == 'adamw':
+            optimizer = optim.AdamW(model.parameters(), lr=a.lr,
+                                    betas=(a.beta1, a.beta2),
+                                    weight_decay=a.weight_decay)
+        else:
+            optimizer = optim.SGD(model.parameters(), lr=a.lr, momentum=a.momentum,
+                                  dampening=a.dampening, nesterov=nesterov,
+                                  weight_decay=a.weight_decay)
+        scheduler = (optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=a.epochs,
+                                                          eta_min=a.eta_min)
                      if a.scheduler == 'cosine' else None)
 
         for epoch in range(a.epochs):

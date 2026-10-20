@@ -1,23 +1,259 @@
 {
-  "_what": "Section 7t: expanded 7-dimension hyperparameter space, headroom and dimensionality. 60 Optuna TPE + 30 uniform random trials per architecture, 3 epochs, CIFAR-10. PARTIAL: 1 of 3 architectures; the other two were still queued on a saturated cluster. Measured 2026-10-13.",
+  "_what": "Section 7t: expanded 7-dimension hyperparameter space, headroom and dimensionality. 60 Optuna TPE + 30 uniform random trials per architecture, 3 epochs, CIFAR-10, 270 trials total, zero failures. COMPLETE: 3 of 3 architectures. Measured 2026-10-13/14.",
   "_stop_rule": "under +2 accuracy points on the architecture with the largest gap closes the direction; fixed before the run",
   "_search_adequacy": "best-so-far at trial 30 within 0.5 points of trial 60 means the budget was not binding; fixed before the run",
-  "instrument_self_test": "passed; see ab/gpt/util/hp_dimensionality.py --self-test",
+  "_design_caveat": "the three uniform-random designs share a seed, so they are the same 30 parameter points evaluated on three networks: the responses replicate, the design does not. Inside that design log10(weight_decay) correlates with log10(lr) at rho=-0.446, which the permutation null does not control for; the orthogonalised test below does.",
+  "instrument_self_test": "passed; ab/gpt/util/hp_dimensionality.py --self-test",
   "per_architecture": {
+    "model_iter_1094.py": {
+      "default": 0.8171,
+      "tpe_best": 0.8211,
+      "tpe_gap_pts": 0.4,
+      "best_of_all_90": 0.8211,
+      "best_gap_pts": 0.4,
+      "trials_beating_default": {
+        "tpe": 3,
+        "random": 0
+      },
+      "best_effective_lr": 0.1358,
+      "default_effective_lr": 0.1,
+      "adamw": {
+        "accuracy": 0.7978,
+        "gap_pts": -1.93
+      },
+      "convergence": {
+        "best_at_trial_30": 0.8137,
+        "best_at_end": 0.8211,
+        "gain_after_trial_30_pts": 0.74,
+        "plateaued_by_30": false,
+        "within_1pt_at_trial": 17,
+        "within_0_5pt_at_trial": 45
+      },
+      "dimensionality_random_design": {
+        "label": "uniform random",
+        "usable_trials": 30,
+        "collapse_fits": {
+          "log10_lr": {
+            "r2": 0.5295,
+            "adj_r2": 0.4946
+          },
+          "log10_eff_lr": {
+            "r2": 0.4987,
+            "adj_r2": 0.4616
+          },
+          "log10_lr_over_batch": {
+            "r2": 0.4486,
+            "adj_r2": 0.4078
+          },
+          "log10_eff_lr_over_batch": {
+            "r2": 0.5038,
+            "adj_r2": 0.4671
+          }
+        },
+        "best_collapse": "log10_lr",
+        "baseline_r2": 0.5296,
+        "baseline_adj_r2": 0.4753,
+        "added_beyond_collapse": {
+          "log10_batch": {
+            "r2": 0.5483,
+            "delta_r2": 0.0187,
+            "delta_adj_r2": -0.0211,
+            "null_p95_delta_r2": 0.1084,
+            "p_value": 0.5948,
+            "verdict": "explained by the collapse"
+          },
+          "log10_weight_decay": {
+            "r2": 0.7485,
+            "delta_r2": 0.2189,
+            "delta_adj_r2": 0.2208,
+            "null_p95_delta_r2": 0.1044,
+            "p_value": 0.004,
+            "verdict": "beyond the collapse"
+          },
+          "label_smoothing": {
+            "r2": 0.5345,
+            "delta_r2": 0.0049,
+            "delta_adj_r2": -0.0377,
+            "null_p95_delta_r2": 0.1071,
+            "p_value": 0.9002,
+            "verdict": "explained by the collapse"
+          },
+          "nesterov": {
+            "r2": 0.5369,
+            "delta_r2": 0.0073,
+            "delta_adj_r2": -0.0125,
+            "null_p95_delta_r2": 0.0589,
+            "p_value": 0.5589,
+            "verdict": "explained by the collapse"
+          },
+          "cosine": {
+            "r2": 0.5946,
+            "delta_r2": 0.065,
+            "delta_adj_r2": 0.0545,
+            "null_p95_delta_r2": 0.0596,
+            "p_value": 0.0359,
+            "verdict": "beyond the collapse"
+          }
+        },
+        "partial_spearman_with_residuals": {
+          "log10_batch": {
+            "spearman": -0.1841,
+            "curvature": -0.1011
+          },
+          "log10_weight_decay": {
+            "spearman": -0.5119,
+            "curvature": 0.2505
+          },
+          "label_smoothing": {
+            "spearman": -0.0598,
+            "curvature": -0.1515
+          },
+          "nesterov": {
+            "spearman": 0.02,
+            "curvature": null
+          },
+          "cosine": {
+            "spearman": 0.3242,
+            "curvature": null
+          }
+        },
+        "all_parameters_r2": 0.8883,
+        "all_parameters_adj_r2": 0.8201,
+        "accuracy_spread_pts": 71.23
+      },
+      "dimensionality_tpe_crosscheck": {
+        "label": "TPE (biased)",
+        "usable_trials": 60,
+        "collapse_fits": {
+          "log10_lr": {
+            "r2": 0.6088,
+            "adj_r2": 0.5951
+          },
+          "log10_eff_lr": {
+            "r2": 0.6962,
+            "adj_r2": 0.6855
+          },
+          "log10_lr_over_batch": {
+            "r2": 0.6649,
+            "adj_r2": 0.6532
+          },
+          "log10_eff_lr_over_batch": {
+            "r2": 0.7198,
+            "adj_r2": 0.71
+          }
+        },
+        "best_collapse": "log10_eff_lr_over_batch",
+        "baseline_r2": 0.7297,
+        "baseline_adj_r2": 0.7152,
+        "added_beyond_collapse": {
+          "log10_batch": {
+            "r2": 0.7325,
+            "delta_r2": 0.0028,
+            "delta_adj_r2": -0.0075,
+            "null_p95_delta_r2": 0.026,
+            "p_value": 0.7485,
+            "verdict": "explained by the collapse"
+          },
+          "log10_weight_decay": {
+            "r2": 0.747,
+            "delta_r2": 0.0173,
+            "delta_adj_r2": 0.0084,
+            "null_p95_delta_r2": 0.0289,
+            "p_value": 0.1557,
+            "verdict": "explained by the collapse"
+          },
+          "label_smoothing": {
+            "r2": 0.7689,
+            "delta_r2": 0.0392,
+            "delta_adj_r2": 0.0323,
+            "null_p95_delta_r2": 0.0285,
+            "p_value": 0.022,
+            "verdict": "beyond the collapse"
+          },
+          "nesterov": {
+            "r2": 0.733,
+            "delta_r2": 0.0033,
+            "delta_adj_r2": -0.0016,
+            "null_p95_delta_r2": 0.0179,
+            "p_value": 0.4052,
+            "verdict": "explained by the collapse"
+          },
+          "cosine": {
+            "r2": 0.7313,
+            "delta_r2": 0.0016,
+            "delta_adj_r2": -0.0035,
+            "null_p95_delta_r2": 0.0204,
+            "p_value": 0.5888,
+            "verdict": "explained by the collapse"
+          }
+        },
+        "partial_spearman_with_residuals": {
+          "log10_batch": {
+            "spearman": -0.2081,
+            "curvature": -0.1383
+          },
+          "log10_weight_decay": {
+            "spearman": 0.0132,
+            "curvature": -0.182
+          },
+          "label_smoothing": {
+            "spearman": -0.3335,
+            "curvature": -0.1756
+          },
+          "nesterov": {
+            "spearman": -0.259,
+            "curvature": null
+          },
+          "cosine": {
+            "spearman": 0.2549,
+            "curvature": null
+          }
+        },
+        "all_parameters_r2": 0.7901,
+        "all_parameters_adj_r2": 0.742,
+        "accuracy_spread_pts": 72.11
+      },
+      "weight_decay_orthogonalised_vs_lr": {
+        "delta_r2_orthogonalised": 0.2694,
+        "p_value": 0.002
+      },
+      "weight_decay_bins_at_sane_eff_lr": {
+        "[1e-06,1e-04)": {
+          "n": 14,
+          "mean": 0.7801
+        },
+        "[1e-04,1e-03)": {
+          "n": 8,
+          "mean": 0.8075
+        },
+        "[1e-03,1e-02)": {
+          "n": 14,
+          "mean": 0.7833
+        },
+        "[1e-02,1e-01)": {
+          "n": 2,
+          "mean": 0.5888
+        }
+      },
+      "bonferroni_alpha": 0.01
+    },
     "model_iter_538.py": {
       "default": 0.8189,
       "tpe_best": 0.8145,
       "tpe_gap_pts": -0.44,
-      "random_best": 0.82,
-      "random_gap_pts": 0.11,
-      "best_of_all_90_pts_gap": 0.11,
+      "best_of_all_90": 0.82,
+      "best_gap_pts": 0.11,
       "trials_beating_default": {
         "tpe": 0,
         "random": 1
       },
-      "adamw_gap_pts": -1.99,
+      "best_effective_lr": 0.0991,
+      "default_effective_lr": 0.1,
+      "adamw": {
+        "accuracy": 0.799,
+        "gap_pts": -1.99
+      },
       "convergence": {
-        "best_so_far": "omitted, see driver output",
         "best_at_trial_30": 0.8108,
         "best_at_end": 0.8145,
         "gain_after_trial_30_pts": 0.37,
@@ -25,8 +261,6 @@
         "within_1pt_at_trial": 17,
         "within_0_5pt_at_trial": 22
       },
-      "best_trial_effective_lr": 0.0991,
-      "default_effective_lr": 0.1,
       "dimensionality_random_design": {
         "label": "uniform random",
         "usable_trials": 30,
@@ -211,6 +445,10 @@
         "all_parameters_adj_r2": 0.7533,
         "accuracy_spread_pts": 71.45
       },
+      "weight_decay_orthogonalised_vs_lr": {
+        "delta_r2_orthogonalised": 0.253,
+        "p_value": 0.002
+      },
       "weight_decay_bins_at_sane_eff_lr": {
         "[1e-06,1e-04)": {
           "n": 8,
@@ -230,7 +468,239 @@
         }
       },
       "bonferroni_alpha": 0.01
+    },
+    "model_iter_165.py": {
+      "default": 0.7929,
+      "tpe_best": 0.7848,
+      "tpe_gap_pts": -0.81,
+      "best_of_all_90": 0.7862,
+      "best_gap_pts": -0.67,
+      "trials_beating_default": {
+        "tpe": 0,
+        "random": 0
+      },
+      "best_effective_lr": 0.0991,
+      "default_effective_lr": 0.1,
+      "adamw": {
+        "accuracy": 0.8052,
+        "gap_pts": 1.23
+      },
+      "convergence": {
+        "best_at_trial_30": 0.7848,
+        "best_at_end": 0.7848,
+        "gain_after_trial_30_pts": 0.0,
+        "plateaued_by_30": true,
+        "within_1pt_at_trial": 20,
+        "within_0_5pt_at_trial": 20
+      },
+      "dimensionality_random_design": {
+        "label": "uniform random",
+        "usable_trials": 30,
+        "collapse_fits": {
+          "log10_lr": {
+            "r2": 0.6309,
+            "adj_r2": 0.6036
+          },
+          "log10_eff_lr": {
+            "r2": 0.5612,
+            "adj_r2": 0.5287
+          },
+          "log10_lr_over_batch": {
+            "r2": 0.5587,
+            "adj_r2": 0.526
+          },
+          "log10_eff_lr_over_batch": {
+            "r2": 0.6036,
+            "adj_r2": 0.5742
+          }
+        },
+        "best_collapse": "log10_lr",
+        "baseline_r2": 0.631,
+        "baseline_adj_r2": 0.5884,
+        "added_beyond_collapse": {
+          "log10_batch": {
+            "r2": 0.6571,
+            "delta_r2": 0.0261,
+            "delta_adj_r2": -0.0027,
+            "null_p95_delta_r2": 0.0875,
+            "p_value": 0.4112,
+            "verdict": "explained by the collapse"
+          },
+          "log10_weight_decay": {
+            "r2": 0.8219,
+            "delta_r2": 0.1909,
+            "delta_adj_r2": 0.1964,
+            "null_p95_delta_r2": 0.0855,
+            "p_value": 0.004,
+            "verdict": "beyond the collapse"
+          },
+          "label_smoothing": {
+            "r2": 0.6354,
+            "delta_r2": 0.0044,
+            "delta_adj_r2": -0.029,
+            "null_p95_delta_r2": 0.0785,
+            "p_value": 0.8782,
+            "verdict": "explained by the collapse"
+          },
+          "nesterov": {
+            "r2": 0.631,
+            "delta_r2": 0.0,
+            "delta_adj_r2": -0.0164,
+            "null_p95_delta_r2": 0.0454,
+            "p_value": 1.0,
+            "verdict": "explained by the collapse"
+          },
+          "cosine": {
+            "r2": 0.6745,
+            "delta_r2": 0.0435,
+            "delta_adj_r2": 0.034,
+            "null_p95_delta_r2": 0.0501,
+            "p_value": 0.0778,
+            "verdict": "explained by the collapse"
+          }
+        },
+        "partial_spearman_with_residuals": {
+          "log10_batch": {
+            "spearman": -0.2388,
+            "curvature": -0.037
+          },
+          "log10_weight_decay": {
+            "spearman": -0.5212,
+            "curvature": 0.1589
+          },
+          "label_smoothing": {
+            "spearman": 0.0256,
+            "curvature": -0.0229
+          },
+          "nesterov": {
+            "spearman": -0.0839,
+            "curvature": null
+          },
+          "cosine": {
+            "spearman": 0.2625,
+            "curvature": null
+          }
+        },
+        "all_parameters_r2": 0.9002,
+        "all_parameters_adj_r2": 0.8392,
+        "accuracy_spread_pts": 62.21
+      },
+      "dimensionality_tpe_crosscheck": {
+        "label": "TPE (biased)",
+        "usable_trials": 60,
+        "collapse_fits": {
+          "log10_lr": {
+            "r2": 0.641,
+            "adj_r2": 0.6284
+          },
+          "log10_eff_lr": {
+            "r2": 0.844,
+            "adj_r2": 0.8385
+          },
+          "log10_lr_over_batch": {
+            "r2": 0.6427,
+            "adj_r2": 0.6302
+          },
+          "log10_eff_lr_over_batch": {
+            "r2": 0.8169,
+            "adj_r2": 0.8105
+          }
+        },
+        "best_collapse": "log10_eff_lr",
+        "baseline_r2": 0.8519,
+        "baseline_adj_r2": 0.844,
+        "added_beyond_collapse": {
+          "log10_batch": {
+            "r2": 0.896,
+            "delta_r2": 0.0441,
+            "delta_adj_r2": 0.0424,
+            "null_p95_delta_r2": 0.0171,
+            "p_value": 0.002,
+            "verdict": "beyond the collapse"
+          },
+          "log10_weight_decay": {
+            "r2": 0.878,
+            "delta_r2": 0.0261,
+            "delta_adj_r2": 0.0227,
+            "null_p95_delta_r2": 0.0172,
+            "p_value": 0.014,
+            "verdict": "beyond the collapse"
+          },
+          "label_smoothing": {
+            "r2": 0.8537,
+            "delta_r2": 0.0018,
+            "delta_adj_r2": -0.0039,
+            "null_p95_delta_r2": 0.0165,
+            "p_value": 0.7565,
+            "verdict": "explained by the collapse"
+          },
+          "nesterov": {
+            "r2": 0.8657,
+            "delta_r2": 0.0138,
+            "delta_adj_r2": 0.012,
+            "null_p95_delta_r2": 0.0113,
+            "p_value": 0.0299,
+            "verdict": "beyond the collapse"
+          },
+          "cosine": {
+            "r2": 0.852,
+            "delta_r2": 0.0001,
+            "delta_adj_r2": -0.0028,
+            "null_p95_delta_r2": 0.0102,
+            "p_value": 0.9321,
+            "verdict": "explained by the collapse"
+          }
+        },
+        "partial_spearman_with_residuals": {
+          "log10_batch": {
+            "spearman": -0.3803,
+            "curvature": -0.0343
+          },
+          "log10_weight_decay": {
+            "spearman": 0.0281,
+            "curvature": 0.0193
+          },
+          "label_smoothing": {
+            "spearman": 0.0775,
+            "curvature": 0.0245
+          },
+          "nesterov": {
+            "spearman": -0.1988,
+            "curvature": null
+          },
+          "cosine": {
+            "spearman": 0.0236,
+            "curvature": null
+          }
+        },
+        "all_parameters_r2": 0.9192,
+        "all_parameters_adj_r2": 0.9006,
+        "accuracy_spread_pts": 68.48
+      },
+      "weight_decay_orthogonalised_vs_lr": {
+        "delta_r2_orthogonalised": 0.2344,
+        "p_value": 0.002
+      },
+      "weight_decay_bins_at_sane_eff_lr": {
+        "[1e-06,1e-04)": {
+          "n": 13,
+          "mean": 0.7365
+        },
+        "[1e-04,1e-03)": {
+          "n": 10,
+          "mean": 0.7554
+        },
+        "[1e-03,1e-02)": {
+          "n": 6,
+          "mean": 0.7292
+        },
+        "[1e-02,1e-01)": {
+          "n": 4,
+          "mean": 0.5773
+        }
+      },
+      "bonferroni_alpha": 0.01
     }
   },
-  "verdict_so_far": "Gate fails on this architecture: 0 of 60 TPE trials beat the default, 1 of 30 random trials did by +0.11 points, and that trial sat at effective lr 0.0991 against the default 0.1000. Search adequacy criterion met (plateaued by trial 30). batch_size folds into the collapse as predicted (p=0.625); weight_decay is a genuinely independent dimension (delta R2 +0.209, p=0.004, survives Bonferroni) but acts downside-only -- the default sits in its best bin and large values are catastrophic."
+  "verdict": "Direction closes. Largest gain over a hardcoded default across 270 trials and three architectures is +0.40 points (model_iter_1094), against a +2 threshold fixed in advance. model_iter_165 was not beaten by any of its 90 trials. Winning configurations land at effective lr 0.1358/0.0991/0.0991 against the default's 0.1000. batch_size folds into the collapse on all three (p=0.41-0.63) as predicted; weight_decay is genuinely independent on all three (p=0.004, surviving Bonferroni, and strengthening to delta R2 +0.23..+0.27 at p=0.002 when orthogonalised against lr) as predicted -- but it is downside-only, the default sitting in its best bin on all three while the top bin costs 16-23 points. model_iter_1094 fails the pre-registered search-adequacy criterion (no plateau by trial 30) and its result is reported as inconclusive on budget grounds rather than as no-headroom."
 }

@@ -2347,19 +2347,31 @@ present in the `nn` table, best accuracy 0.77-0.80.
 
 ### Their few settings are sparse but not narrow
 
+The claim, stated with no cross-regime assumption:
+
+> **29 of 40 architectures already recorded a setting at a higher effective
+> learning rate than their best one, and it scored worse.** Their optimum is
+> bracketed: the grid went past it and came back down.
+
 | | value |
 |---|---|
 | architectures | 40 |
 | settings each | 3-6 |
+| **optimum bracketed (a worse setting above the best)** | **29 of 40** |
+| optimum un-bracketed (best is at the top edge sampled) | 11 of 40 |
 | span of their settings in effective lr, median | **525x** |
 | span, max | 12,754x |
-| **clustered within 3x** | **1 of 40** |
-| best setting at or bracketing the peak band (0.04-0.15) | **21 of 40** |
+| clustered within 3x | 1 of 40 |
 
 Three to six settings sounds lightly searched. In effective-learning-rate space
 those settings span two to four orders of magnitude — a coarse scan, but a
-**wide** one, and in 21 of 40 cases it already brackets the optimum with the
-best point inside.
+**wide** one, and in 29 of 40 cases it has already been past the peak.
+
+*Corroboration, which does carry an assumption:* 21 of 40 have their best
+setting inside or bracketing the 0.04-0.15 peak band from sections 7s and 7t.
+That band was measured at batch 32-1024 while these settings use batch 2 to
+4096, so it is supporting evidence for the bracketing result above, not the
+basis of it.
 
 **This is the one-effective-dimension mechanism of sections 7s and 7t
 reproducing on an independent population.** When accuracy depends on
@@ -2395,6 +2407,17 @@ settings above its best:
 0.953, above its best at 0.327, and that higher point scored 0.6699. Its optimum
 is bracketed — the no-headroom signature — and selecting it would have built the
 answer into the test set.
+
+**Selection caveat, recorded before any result exists.** These three are the
+most favourable architectures in the corpus by an explicit criterion: selected
+from 40 for having the strongest un-bracketed signature, from a population in
+which **29 of 40 are bracketed**. That is the right choice for a gate — it gives
+the direction its best chance, so a null result is decisive. It also means **a
+positive result would not generalise.** If the search beats these three, that is
+evidence about three deliberately-chosen outliers, not about LEMUR architectures
+generally, and any follow-up would have to re-measure on an unselected sample
+before claiming otherwise. This is a design property of the gate, not a caveat
+discovered afterwards.
 
 ### Infrastructure: three findings that each cost a wasted job
 

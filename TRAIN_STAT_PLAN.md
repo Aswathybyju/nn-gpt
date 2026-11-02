@@ -2487,15 +2487,40 @@ training pass alone and does not bound the three extra passes.
 
 | design | per architecture | three architectures |
 |---|---|---|
-| unfloored, batch 2-4096 | ~10h | **~30h** |
-| **floor at 16** | ~5.5h | **~16.4h** |
-| floor at 32 | ~5.2h | ~15.5h |
-| floor at 16, 60 trials | ~3.6h | ~10.9h |
+| batch searched, unfloored (2-4096) | ~10h | ~30h |
+| batch searched, floored at 16 | ~5.5h | ~16.4h |
+| **batch FIXED at each recorded best** | 7.18 / 5.49 / 7.18h | **~19.9h** |
+| batch fixed, 60 trials | 4.79 / 3.66 / 4.79h | ~13.2h |
 
 The batch floor is nearly free and the trial count is not, which is the opposite
-of the intuition. **Floor at 16** is the choice: flooring at 32 saves 6% and
-would leave the search unable to reproduce two of the three targets it is
-measured against, since those record their best at batch 16.
+of the intuition.
+
+### The gate searches two dimensions, not seven
+
+`batch` is **held fixed** at each architecture's own recorded best — 16, 32, 16 —
+and only `(lr, momentum)` is searched. Four reasons, and the first is the one
+that matters:
+
+* **The at-edge signature is a claim about effective lr at the batch those runs
+  used.** Searching batch would test a different hypothesis from the one that
+  selected these three architectures, so a result either way would not speak to
+  the selection.
+* It makes the comparison **exactly like-for-like** against the recorded target:
+  same architecture, same transform, same batch, same epoch count, only
+  `(lr, momentum)` free.
+* It **sidesteps the abort region entirely** (section 7v). Each recorded batch is
+  known-trainable because it produced the accuracy being targeted.
+* Section 7t already measured the alternative: **seven dimensions did worse than
+  two** on the same budget.
+
+This costs *more*, not less — 19.9 GPU-hours against 16.4 — because two of the
+three are pinned at batch 16, the most expensive point in the floored range,
+where the floored design averaged in cheaper large batches. The design is better
+and the price is higher; both are stated rather than one being traded quietly for
+the other.
+
+**If the gate passes**, `batch` becomes a follow-up dimension with
+`epoch_limit_minutes` raised deliberately. Not before.
 
 Incidentally confirmed: this path reports `Grad Norm` and `Throughput` per epoch
 alongside the losses and accuracies, so **the full `train_stat` field set is
@@ -2504,11 +2529,78 @@ the original reason for switching to the LEMUR path and it holds.
 
 ### Status
 
-The gate — 60 TPE plus 30 uniform random trials on each of the three at-edge
-architectures, 3 epochs, batch floored at 16, `save_to_db=False`, threshold +1
-accuracy point over the best recorded setting, convergence curve for search
-adequacy, never pooled — is specified and costed at ~16.4 GPU-hours. It awaits a
+The gate — 60 TPE plus 30 uniform random trials over `(lr, momentum)` on each of
+the three at-edge architectures, 3 epochs, **batch fixed at 16 / 32 / 16**,
+`save_to_db=False`, threshold +1 accuracy point over that architecture's best
+recorded setting, convergence curve for search adequacy, never pooled — is
+specified and costed at **~19.9 GPU-hours** (13.2h at 60 trials). It awaits a
 budget decision; nothing about the protocol remains open.
+
+## 7v. Two sampler artifacts that look like properties of the model
+
+Both are traps for anyone running a search on this stack. They share a shape —
+the search procedure manufactures a surface, and the surface gets read as a fact
+about the network — and they have different causes.
+
+### The time-limit abort, which TPE then learns from
+
+`Train.py` estimates epoch time before training and, when the estimate exceeds
+`epoch_limit_minutes` (default **30**), **aborts instead of training**. It
+returns `(epoch_limit_minutes / estimated_training_time) / 1e5` as the metric and
+accuracy `0`, in seconds rather than minutes
+(`Train.py:148-160`).
+
+Nothing about that is wrong on its own. What makes it a trap is the combination
+with a sampler:
+
+1. A trial in an expensive region returns accuracy 0 almost immediately.
+2. TPE cannot distinguish "this configuration is bad" from "this configuration
+   was never evaluated", because both arrive as a low objective value.
+3. It steers away from the whole region — and does so *faster* than it would
+   from genuinely bad configurations, because the aborts are cheap, so many of
+   them land early.
+4. **The resulting search surface is an artifact of the time limit, not of the
+   model.** Any importance analysis, any claim about which hyperparameters
+   matter, and any "the search explored and rejected that region" statement
+   inherits the artifact.
+
+The abort is also not bounded by what the limit appears to bound. The limit is
+checked per epoch against the *training* pass, while the two full-train-set
+passes, the test-loss pass and the eval pass run unbounded — so at batch 2 a
+trial took **27.5 minutes** of wall clock without the abort ever firing
+(section 7u). The limit neither prevented the expense nor flagged it.
+
+Mitigations, in order of preference: hold the expensive dimension fixed at a
+known-trainable value (what section 7u's gate now does with `batch`); or raise
+`epoch_limit_minutes` deliberately and record that you did; or at minimum detect
+the signature — accuracy exactly 0 with a vanishing metric and a runtime far
+below the median — and exclude those trials from any analysis rather than letting
+the sampler treat them as evidence.
+
+### The TPE sampler bias, which hides real effects
+
+Recorded in section 7t and repeated here because it is the same class of error.
+TPE concentrates sampling where the objective is good, so a parameter it stopped
+varying contributes almost no variance **whether or not it matters**. Run on
+TPE's own 60 trials, section 7t's dimensionality analysis found nothing
+significant on any of the three architectures — `weight_decay` included, which
+the uniform-random design showed at `delta R^2` +0.19 to +0.22, p = 0.004, and
+which strengthened to +0.23..+0.27 at p = 0.002 once orthogonalised against `lr`.
+
+> **A variance decomposition run on an optimiser's own trials is not
+> interpretable.** It needs a design that samples where the optimiser would not.
+
+That is why section 7t paid 50% extra for 30 uniform-random trials per
+architecture, and the expense was justified by the result: without them the
+conclusion would have been that the space is one-dimensional, which is false.
+
+### Why both belong here
+
+Each one turns the behaviour of the search into an apparent property of the thing
+being searched. The first makes a region look bad when it was never measured; the
+second makes a parameter look irrelevant when it was never varied. Neither is
+visible in the output of the search itself — both require either a second design
+or an explicit check for the signature.
 
 ## 8. Files (all new; no existing file modified)
 

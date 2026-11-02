@@ -2439,16 +2439,76 @@ three, so switching between them silently changes the requirements.
    plus `README.md`. So `cd <repo>` is what keeps `data_dir` pointing at the
    mounted data, and the shadow does not move it. Load-bearing and entirely
    non-obvious from the code's shape.
+4. **`k8s/mkjob.py`'s `tar --exclude` never worked**, and its comment claimed it
+   did. The option was written *after* the member name:
+
+   ```
+   tar -C /a/nnd -cf - ab/nn --exclude='ab/nn/stat' | tar -C $root/abnn -xf -
+   ```
+
+   GNU tar (1.34) **silently ignores `--exclude` in that position**. Verified on
+   a synthetic tree: exclude-after archives `ab/nn/stat/drop.json`,
+   exclude-before omits it. Every job built from that template — the hp_family
+   generation and evaluation rounds and all three markov timing jobs — therefore
+   copied **2.6 GB** of `stat` JSONs instead of 128 MB, which is the whole reason
+   each shadow build took 5-10 minutes. Fixed by moving the option before the
+   member, and the shadow is now cached on the shared hostPath so repeated jobs
+   skip the build entirely. A comment asserting behaviour the code did not have
+   is the reason this survived so long.
+
+### Cost through `ab.nn`, and what it does to the budget
+
+One 3-epoch trial, `unq-1e4a3a8c`, measured across the batch range because
+throughput varies far more with batch than accuracy does. Artifact:
+`results/verification/hp_lemur_trial_cost.json`.
+
+| batch | seconds | vs `train_hp.py` (24s at batch 128) |
+|---|---|---|
+| 2 | **1,648.6** | **68.7x** |
+| 16 | 287.3 | 12.0x |
+| 32 | 219.4 | 9.1x |
+| 1024 | 198.7 | 8.3x |
+
+**`save_to_db=False` verified: tables that changed — NONE**, with every table in
+the database counted before and after, not just the two expected. `stat` and
+`train_stat` unmoved at 1,010,753 and 326,501.
+
+Two structural facts follow. There is a **~199s floor** independent of batch:
+above batch 16 the cost barely moves, because the fixed work dominates — and
+that work is larger here than in markov's loop because all three selected
+architectures have a `learn()` that returns nothing, so the conditional branch at
+`Train.py:336-338` fires and **two additional full-train-set passes** run every
+epoch on top of the test-loss pass, the eval pass and the gradient norm. At
+batch 2 that is 85,000 steps per epoch against `train_hp.py`'s 30,000.
+
+And batch 2 **trains rather than aborting** — 27.5 minutes for one trial, with
+the 30-minute limit never firing because it is checked per epoch against the
+training pass alone and does not bound the three extra passes.
+
+| design | per architecture | three architectures |
+|---|---|---|
+| unfloored, batch 2-4096 | ~10h | **~30h** |
+| **floor at 16** | ~5.5h | **~16.4h** |
+| floor at 32 | ~5.2h | ~15.5h |
+| floor at 16, 60 trials | ~3.6h | ~10.9h |
+
+The batch floor is nearly free and the trial count is not, which is the opposite
+of the intuition. **Floor at 16** is the choice: flooring at 32 saves 6% and
+would leave the search unable to reproduce two of the three targets it is
+measured against, since those record their best at batch 16.
+
+Incidentally confirmed: this path reports `Grad Norm` and `Throughput` per epoch
+alongside the losses and accuracies, so **the full `train_stat` field set is
+genuinely produced here** — unlike markov's three fields (section 7r). That was
+the original reason for switching to the LEMUR path and it holds.
 
 ### Status
 
-The gate itself — 60 TPE plus 30 uniform random trials on each of the three
-at-edge architectures, `save_to_db=False`, threshold +1 accuracy point over the
-best recorded setting — is held until the per-trial cost through `ab.nn` is
-measured against `train_hp.py`'s ~24s. `Train.py` does strictly more work per
-epoch (a full train-set accuracy pass, a test-loss pass, and the gradient norm,
-`Train.py:338-347`) plus `codeEvaluator` on every call, so it is slower; by how
-much decides whether 270 trials is two GPU-hours or eighteen.
+The gate — 60 TPE plus 30 uniform random trials on each of the three at-edge
+architectures, 3 epochs, batch floored at 16, `save_to_db=False`, threshold +1
+accuracy point over the best recorded setting, convergence curve for search
+adequacy, never pooled — is specified and costed at ~16.4 GPU-hours. It awaits a
+budget decision; nothing about the protocol remains open.
 
 ## 8. Files (all new; no existing file modified)
 

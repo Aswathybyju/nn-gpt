@@ -7,10 +7,12 @@ name, mode, a, b, root = sys.argv[1:6]
 gpus = int(sys.argv[6]) if len(sys.argv) > 6 else 1
 # Shadow ab.nn from the mounted local checkout (/a/nnd), not the image: the
 # image ships a pre-train_stat ab.nn that queries a `loader` table this DB does
-# not have. stat/ (3.1G of JSONs) is excluded; the package dirs must be writable
+# not have. stat/ (2.6G of JSONs) is excluded -- NOTE the --exclude must come
+# BEFORE the member name: GNU tar silently ignores it afterwards, which it did
+# here until 2026-11-02, copying all 2.6G every run; the package dirs must be writable
 # because nn-dataset materialises metric/nn/transform code into them at runtime.
 SHADOW = (f"rm -rf {root}/abnn && mkdir -p {root}/abnn/ab && "
-          f"tar -C /a/nnd -cf - ab/nn --exclude='ab/nn/stat' | tar -C {root}/abnn -xf - && "
+          f"tar -C /a/nnd -cf - --exclude='ab/nn/stat' ab/nn | tar -C {root}/abnn -xf - && "
           f"mkdir -p {root}/abnn/ab/nn/stat {root}/abnn/ab/nn/metric "
           f"{root}/abnn/ab/nn/transform && export PYTHONPATH={root}/abnn && ")
 if mode == 'gen':

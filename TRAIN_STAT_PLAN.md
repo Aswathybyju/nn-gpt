@@ -2315,6 +2315,118 @@ could not be beaten at all, and the one genuinely independent dimension added is
 one that can only hurt. The stop rule was fixed in advance at +2 points and
 nothing came close.
 
+## 7u. Sparse search records are not an unexplored space
+
+The hyperparameter direction had one route left after section 7t: train through
+`ab.nn` rather than markov's own loop, so `train_stat` is both the input shown in
+a prompt and the output written back, and compare a continuous search against
+**the best setting LEMUR already records** rather than against a hardcoded
+default. The premise was that an architecture with only a handful of recorded
+settings is a weak, lightly-searched target, so a +1 point threshold would be
+meaningful where section 7t needed +2.
+
+**That premise does not survive contact with the data, and the pre-screen cost
+no GPU time.** Artifact: `results/verification/hp_lemur_prescreen.json`.
+
+### The lightly-searched population is pretrained
+
+3,011 CIFAR-10 architectures have 3-6 distinct `(lr, momentum, batch)` settings
+at epoch 3. Sorted by accuracy the top of that list reaches **0.92-0.965**,
+which is not reachable from scratch in three epochs — section 7t's architectures
+peak at 0.79-0.82 and `ResNet`, with 154 recorded settings, at 0.7970. The names
+give it away (`rl-back-init-*`, `rl-bb-*`) and the code confirms it:
+
+```python
+self.m = torchvision.models.get_model(model, weights=weights)
+```
+
+Pretrained ImageNet backbones. Fine-tuning one is a different problem from the
+one sections 7s and 7t measured, and a 0.965 ceiling puts any threshold out of
+reach, so they are excluded. **40 architectures** remain: from-scratch, code
+present in the `nn` table, best accuracy 0.77-0.80.
+
+### Their few settings are sparse but not narrow
+
+| | value |
+|---|---|
+| architectures | 40 |
+| settings each | 3-6 |
+| span of their settings in effective lr, median | **525x** |
+| span, max | 12,754x |
+| **clustered within 3x** | **1 of 40** |
+| best setting at or bracketing the peak band (0.04-0.15) | **21 of 40** |
+
+Three to six settings sounds lightly searched. In effective-learning-rate space
+those settings span two to four orders of magnitude — a coarse scan, but a
+**wide** one, and in 21 of 40 cases it already brackets the optimum with the
+best point inside.
+
+**This is the one-effective-dimension mechanism of sections 7s and 7t
+reproducing on an independent population.** When accuracy depends on
+`lr/(1 - momentum)` through a single interior optimum, a 3-point scan spanning
+four orders of magnitude lands near the peak by construction. Sparse *records*
+are not evidence of an unexplored *space*. The same fact explains why section
+7t's five extra dimensions bought nothing, and it is the more general statement
+of it.
+
+### The selector: at-edge, not band membership
+
+The 0.04-0.15 peak band comes from sections 7s and 7t, measured at batch
+32-1024. These settings use batch 2 to 4096, so importing the band across
+regimes is an assumption, and a null result read through it would not be
+interpretable. The assumption-free signature is instead:
+
+> **Is the best recorded setting the highest effective lr that architecture ever
+> sampled?** If so its optimum is un-bracketed — the grid ran out before the
+> accuracy did — and a continuous search has somewhere to go. If a setting above
+> the best exists and scored worse, the optimum is bracketed and there is nothing
+> to find.
+
+**11 of 40 are at-edge.** Three were selected, each with **zero** recorded
+settings above its best:
+
+| architecture | best | eff lr of best | sampled range | settings above best |
+|---|---|---|---|---|
+| `unq-0513aa00` | 0.7835 | **0.976** | 0.0059 - 0.976 | 0 |
+| `unq-1e4a3a8c` | 0.7800 | **0.486** | 0.00014 - 0.486 | 0 |
+| `unq-72e09438` | 0.7744 | **0.358** | 0.00007 - 0.358 | 0 |
+
+`unq-1f601f51` was considered and **dropped**: its grid reached effective lr
+0.953, above its best at 0.327, and that higher point scored 0.6699. Its optimum
+is bracketed — the no-headroom signature — and selecting it would have built the
+answer into the test set.
+
+### Infrastructure: three findings that each cost a wasted job
+
+Recorded because the markov path needs none of them and the LEMUR path needs all
+three, so switching between them silently changes the requirements.
+
+1. **`<repo>/data` is root-owned `0770`** from an earlier container run, and
+   `ab.nn` has no override — `Const.data_dir = ab_root_path / 'data'`. The
+   symptom is a `PermissionError` on `cifar-10-python.tar.gz`, which reads like a
+   missing dataset and invites an hour of re-downloading at the 40 KB/s
+   `cs.toronto.edu` serves. Fix: mount a writable directory there.
+2. **`ab.nn` cannot run from the image's `site-packages`.** It materialises
+   metric code into its own package directory at runtime, so a read-only install
+   fails with `PermissionError` on `site-packages/ab/nn/metric/acc.py`. Fix: the
+   `k8s/mkjob.py` shadow — tar the mounted checkout's `ab/nn` into a writable
+   directory and put it first on `PYTHONPATH`.
+3. **`ab_root_path` follows the working directory, not the module.**
+   `__project_root_path()` walks up from `Path().absolute()` looking for `ab/`
+   plus `README.md`. So `cd <repo>` is what keeps `data_dir` pointing at the
+   mounted data, and the shadow does not move it. Load-bearing and entirely
+   non-obvious from the code's shape.
+
+### Status
+
+The gate itself — 60 TPE plus 30 uniform random trials on each of the three
+at-edge architectures, `save_to_db=False`, threshold +1 accuracy point over the
+best recorded setting — is held until the per-trial cost through `ab.nn` is
+measured against `train_hp.py`'s ~24s. `Train.py` does strictly more work per
+epoch (a full train-set accuracy pass, a test-loss pass, and the gradient norm,
+`Train.py:338-347`) plus `codeEvaluator` on every call, so it is slower; by how
+much decides whether 270 trials is two GPU-hours or eighteen.
+
 ## 8. Files (all new; no existing file modified)
 
 | file | role |

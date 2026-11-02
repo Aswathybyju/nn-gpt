@@ -1,0 +1,687 @@
+{
+  "_what": "Section 7u pre-screen: do LEMUR's lightly-searched from-scratch architectures have unexplored hyperparameter space? Measured from SQL alone, no GPU. CIFAR-10, epoch 3, 2026-11-02.",
+  "population": {
+    "architectures_k3_to_6_at_epoch3": 3011,
+    "from_scratch_with_code_in_nn_table": 40,
+    "excluded_as_pretrained": "rl-back-init-*, rl-bb-* etc. wrap torchvision.models.get_model(model, weights=weights); they reach 0.92-0.965 at epoch 3 where from-scratch architectures reach 0.77-0.80",
+    "best_accuracy_range": [
+      0.7744,
+      0.8006
+    ]
+  },
+  "effective_lr_spread": {
+    "span_ratio_min": 1.67,
+    "span_ratio_median": 525.84,
+    "span_ratio_max": 12754.35,
+    "clustered_within_3x": 1,
+    "best_at_or_bracketing_peak_band": 40,
+    "peak_band_caveat": "the 0.04-0.15 band is from 7s/7t, measured at batch 32-1024; these settings use batch 2-4096, so the band is not assumption-free. The at-edge test below replaces it."
+  },
+  "at_edge_selector": {
+    "_definition": "is the best recorded setting the highest effective lr that architecture sampled? If yes its optimum is un-bracketed and a search has somewhere to go. Needs no cross-regime assumption.",
+    "at_edge": 11,
+    "total": 40,
+    "selected_for_the_gate": [
+      {
+        "nn": "unq-0513aa00eb481f0acf3ef060d0ff1ae4",
+        "k": 3,
+        "best_accuracy": 0.7835,
+        "eff_lr_min": 0.00591,
+        "eff_lr_max": 0.9758,
+        "eff_lr_of_best": 0.9758,
+        "settings_above_best": 0,
+        "accuracies_above_best": [],
+        "at_edge": true,
+        "batch_of_best": 16,
+        "transform": "bf-v1-RandomHorizontalFlip_RandomAutocontrast_CenterCrop"
+      },
+      {
+        "nn": "unq-1e4a3a8ca91c6d1bfa2fecc9b9006318",
+        "k": 4,
+        "best_accuracy": 0.78,
+        "eff_lr_min": 0.00014,
+        "eff_lr_max": 0.48571,
+        "eff_lr_of_best": 0.48571,
+        "settings_above_best": 0,
+        "accuracies_above_best": [],
+        "at_edge": true,
+        "batch_of_best": 32,
+        "transform": "bf-v1-RandomHorizontalFlip_RandomAutocontrast_RandomGrayscale"
+      },
+      {
+        "nn": "unq-72e0943887f1ba9dc3b5928a10be689f",
+        "k": 4,
+        "best_accuracy": 0.7744,
+        "eff_lr_min": 7e-05,
+        "eff_lr_max": 0.3578,
+        "eff_lr_of_best": 0.3578,
+        "settings_above_best": 0,
+        "accuracies_above_best": [],
+        "at_edge": true,
+        "batch_of_best": 16,
+        "transform": "bf-v1-RandomAutocontrast_RandomHorizontalFlip"
+      }
+    ],
+    "dropped_as_bracketed": [
+      {
+        "nn": "unq-1f601f51ac8af7cda6b13e0e3d32cb36",
+        "k": 4,
+        "best_accuracy": 0.7788,
+        "eff_lr_min": 0.00031,
+        "eff_lr_max": 0.95308,
+        "eff_lr_of_best": 0.32657,
+        "settings_above_best": 1,
+        "accuracies_above_best": [
+          0.6699
+        ],
+        "at_edge": false,
+        "batch_of_best": 32,
+        "transform": "bf-v1-RandomHorizontalFlip_RandomAdjustSharpnes_RandomPosterize"
+      }
+    ]
+  },
+  "all_candidates": [
+    {
+      "nn": "unq-854d37cdff6a8f1c62bf2928ec6b7f60",
+      "k": 3,
+      "best_accuracy": 0.8006,
+      "eff_lr_min": 0.00019,
+      "eff_lr_max": 0.18888,
+      "eff_lr_of_best": 0.18888,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 8,
+      "transform": "bf-v1-CenterCrop_RandomRotation_2"
+    },
+    {
+      "nn": "unq-9ddcbaed81d3f9226169bcb9e7b4a11c",
+      "k": 6,
+      "best_accuracy": 0.7957,
+      "eff_lr_min": 0.00022,
+      "eff_lr_max": 2.18043,
+      "eff_lr_of_best": 0.14994,
+      "settings_above_best": 2,
+      "accuracies_above_best": [
+        0.6333,
+        0.4381
+      ],
+      "at_edge": false,
+      "batch_of_best": 4,
+      "transform": "bf-v1-RandomHorizontalFlip_RandomPosterize_RandomAutocontrast"
+    },
+    {
+      "nn": "unq-b3beca4d2a5f2b539501236beceac35c",
+      "k": 5,
+      "best_accuracy": 0.7952,
+      "eff_lr_min": 0.00017,
+      "eff_lr_max": 2.13673,
+      "eff_lr_of_best": 0.12569,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.7302
+      ],
+      "at_edge": false,
+      "batch_of_best": 4,
+      "transform": "echo_64"
+    },
+    {
+      "nn": "unq-474b96b7b5a1763751b3e87f8d51ae8b",
+      "k": 5,
+      "best_accuracy": 0.7937,
+      "eff_lr_min": 0.00222,
+      "eff_lr_max": 0.2146,
+      "eff_lr_of_best": 0.09765,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.5921
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomCrop_Pad_4"
+    },
+    {
+      "nn": "unq-e0952467fa496c33a651eb2384878995",
+      "k": 4,
+      "best_accuracy": 0.7935,
+      "eff_lr_min": 0.01065,
+      "eff_lr_max": 1.18826,
+      "eff_lr_of_best": 0.183,
+      "settings_above_best": 2,
+      "accuracies_above_best": [
+        0.4454,
+        0.2356
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomHorizontalFlip_RandomAutocontrast_RandomGrayscale"
+    },
+    {
+      "nn": "unq-0aeba0696eaf08a586aaff1de3aae31f",
+      "k": 5,
+      "best_accuracy": 0.7903,
+      "eff_lr_min": 9e-05,
+      "eff_lr_max": 0.89048,
+      "eff_lr_of_best": 0.06749,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.6161
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "norm_64_flip"
+    },
+    {
+      "nn": "unq-fdeefc64942da8b157bcf92c3f4e6d52",
+      "k": 4,
+      "best_accuracy": 0.7899,
+      "eff_lr_min": 0.00096,
+      "eff_lr_max": 0.43033,
+      "eff_lr_of_best": 0.19328,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.7259
+      ],
+      "at_edge": false,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomRotation_CenterCrop_6"
+    },
+    {
+      "nn": "unq-23ff55252cf6d37ea89e4c602d521603",
+      "k": 3,
+      "best_accuracy": 0.7896,
+      "eff_lr_min": 0.0086,
+      "eff_lr_max": 0.24702,
+      "eff_lr_of_best": 0.24702,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomAdjustSharpnes_RandomAutocontrast"
+    },
+    {
+      "nn": "ga-mut-2109",
+      "k": 4,
+      "best_accuracy": 0.7894,
+      "eff_lr_min": 2e-05,
+      "eff_lr_max": 0.03471,
+      "eff_lr_of_best": 0.03471,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 4,
+      "transform": "norm"
+    },
+    {
+      "nn": "unq-57b5100241297c4653b920a0bf9c796c",
+      "k": 4,
+      "best_accuracy": 0.7888,
+      "eff_lr_min": 0.00026,
+      "eff_lr_max": 0.52009,
+      "eff_lr_of_best": 0.33259,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.3114
+      ],
+      "at_edge": false,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomCrop_RandomPosterize"
+    },
+    {
+      "nn": "unq-f337281e22f2daa270ccf7461e84e5d9",
+      "k": 3,
+      "best_accuracy": 0.7885,
+      "eff_lr_min": 0.00013,
+      "eff_lr_max": 0.10296,
+      "eff_lr_of_best": 0.10296,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 4,
+      "transform": "bf-v1-RandomRotation_CenterCrop_6"
+    },
+    {
+      "nn": "unq-83c6251cb535c59d4a6c0bdf7db5e09d",
+      "k": 3,
+      "best_accuracy": 0.7884,
+      "eff_lr_min": 0.0329,
+      "eff_lr_max": 1.12143,
+      "eff_lr_of_best": 0.04097,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.536
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomAdjustSharpnes_RandomHorizontalFlip"
+    },
+    {
+      "nn": "unq-448f196f897be87da0f82d0ed1f10195",
+      "k": 3,
+      "best_accuracy": 0.7884,
+      "eff_lr_min": 0.00189,
+      "eff_lr_max": 1.1163,
+      "eff_lr_of_best": 0.12778,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.6808
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomRotation_RandomAutocontrast_3"
+    },
+    {
+      "nn": "alt-nn1-5749d225c7307a4f10ebf2fe88bb0c0d",
+      "k": 5,
+      "best_accuracy": 0.7858,
+      "eff_lr_min": 0.00439,
+      "eff_lr_max": 0.2179,
+      "eff_lr_of_best": 0.2179,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomCrop_RandomAutocontrast_3"
+    },
+    {
+      "nn": "MoE4Own-batch-00068-20260408-225956-4a491f2adede91508575e7868a049781",
+      "k": 3,
+      "best_accuracy": 0.7853,
+      "eff_lr_min": 0.00025,
+      "eff_lr_max": 0.01103,
+      "eff_lr_of_best": 0.00129,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.6167
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomCrop_RandomAutocontrast_3"
+    },
+    {
+      "nn": "unq-fb53fc4ed702f57281b31fd2e953a4c8",
+      "k": 3,
+      "best_accuracy": 0.7851,
+      "eff_lr_min": 0.12689,
+      "eff_lr_max": 0.21192,
+      "eff_lr_of_best": 0.12689,
+      "settings_above_best": 2,
+      "accuracies_above_best": [
+        0.4943,
+        0.4536
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomPerspective_CenterCrop"
+    },
+    {
+      "nn": "unq-f4047b5e6044106db20a976970149f70",
+      "k": 3,
+      "best_accuracy": 0.7839,
+      "eff_lr_min": 0.01003,
+      "eff_lr_max": 0.05647,
+      "eff_lr_of_best": 0.05647,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomCrop_RandomAutocontrast_3"
+    },
+    {
+      "nn": "unq-0513aa00eb481f0acf3ef060d0ff1ae4",
+      "k": 3,
+      "best_accuracy": 0.7835,
+      "eff_lr_min": 0.00591,
+      "eff_lr_max": 0.9758,
+      "eff_lr_of_best": 0.9758,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomHorizontalFlip_RandomAutocontrast_CenterCrop"
+    },
+    {
+      "nn": "unq-e99c5fdfcdaa135744e90e186feabd49",
+      "k": 6,
+      "best_accuracy": 0.7819,
+      "eff_lr_min": 0.00101,
+      "eff_lr_max": 0.10732,
+      "eff_lr_of_best": 0.10732,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomHorizontalFlip_RandomAutocontrast"
+    },
+    {
+      "nn": "unq-2234b5feadac1d9ec93cc15d04459587",
+      "k": 4,
+      "best_accuracy": 0.7816,
+      "eff_lr_min": 0.0025,
+      "eff_lr_max": 0.11781,
+      "eff_lr_of_best": 0.11781,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomCrop_RandomAdjustSharpnes_Pad"
+    },
+    {
+      "nn": "ga-mut-1026",
+      "k": 5,
+      "best_accuracy": 0.7802,
+      "eff_lr_min": 2e-05,
+      "eff_lr_max": 0.27063,
+      "eff_lr_of_best": 0.06156,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.6101
+      ],
+      "at_edge": false,
+      "batch_of_best": 4,
+      "transform": "echo"
+    },
+    {
+      "nn": "unq-1e4a3a8ca91c6d1bfa2fecc9b9006318",
+      "k": 4,
+      "best_accuracy": 0.78,
+      "eff_lr_min": 0.00014,
+      "eff_lr_max": 0.48571,
+      "eff_lr_of_best": 0.48571,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 32,
+      "transform": "bf-v1-RandomHorizontalFlip_RandomAutocontrast_RandomGrayscale"
+    },
+    {
+      "nn": "unq-dfadeae7bdcb54f4812e5d8f53c41cb0",
+      "k": 4,
+      "best_accuracy": 0.7798,
+      "eff_lr_min": 0.00175,
+      "eff_lr_max": 0.29362,
+      "eff_lr_of_best": 0.16069,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.5625
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomHorizontalFlip_RandomPosterize_RandomPerspective"
+    },
+    {
+      "nn": "unq-fd0c90dbacf7461858179af9104a9262",
+      "k": 3,
+      "best_accuracy": 0.7796,
+      "eff_lr_min": 0.00207,
+      "eff_lr_max": 1.23547,
+      "eff_lr_of_best": 0.00417,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.4602
+      ],
+      "at_edge": false,
+      "batch_of_best": 4,
+      "transform": "bf-v1-RandomPosterize_RandomAutocontrast"
+    },
+    {
+      "nn": "unq-55a4338fd8f4c266f2c9809ed19e3632",
+      "k": 5,
+      "best_accuracy": 0.779,
+      "eff_lr_min": 0.0179,
+      "eff_lr_max": 0.12832,
+      "eff_lr_of_best": 0.05134,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.7198
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomAdjustSharpnes"
+    },
+    {
+      "nn": "unq-1f601f51ac8af7cda6b13e0e3d32cb36",
+      "k": 4,
+      "best_accuracy": 0.7788,
+      "eff_lr_min": 0.00031,
+      "eff_lr_max": 0.95308,
+      "eff_lr_of_best": 0.32657,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.6699
+      ],
+      "at_edge": false,
+      "batch_of_best": 32,
+      "transform": "bf-v1-RandomHorizontalFlip_RandomAdjustSharpnes_RandomPosterize"
+    },
+    {
+      "nn": "unq-74eaf9a269d938064c32a55388666e32",
+      "k": 4,
+      "best_accuracy": 0.7782,
+      "eff_lr_min": 0.00388,
+      "eff_lr_max": 1.03162,
+      "eff_lr_of_best": 0.03167,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.693
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomAdjustSharpnes_29"
+    },
+    {
+      "nn": "unq-e3aec622909575e3f83b28220a34da3f",
+      "k": 5,
+      "best_accuracy": 0.7775,
+      "eff_lr_min": 0.0004,
+      "eff_lr_max": 0.08835,
+      "eff_lr_of_best": 0.03709,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.5732
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomAdjustSharpnes_RandomPosterize"
+    },
+    {
+      "nn": "unq-fe25703c4f1e3aff1d94f8798e0c84db",
+      "k": 5,
+      "best_accuracy": 0.7773,
+      "eff_lr_min": 0.00025,
+      "eff_lr_max": 0.6643,
+      "eff_lr_of_best": 0.0972,
+      "settings_above_best": 2,
+      "accuracies_above_best": [
+        0.7069,
+        0.5887
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomRotation_CenterCrop_6"
+    },
+    {
+      "nn": "unq-2e427f44b5b791ad6a892d65d2e7385c",
+      "k": 4,
+      "best_accuracy": 0.777,
+      "eff_lr_min": 0.00055,
+      "eff_lr_max": 0.41575,
+      "eff_lr_of_best": 0.08973,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.7155
+      ],
+      "at_edge": false,
+      "batch_of_best": 4,
+      "transform": "bf-v1-RandomAdjustSharpnes"
+    },
+    {
+      "nn": "unq-ff28e4184fd0b2eb983bf2b933568c15",
+      "k": 4,
+      "best_accuracy": 0.7768,
+      "eff_lr_min": 0.00014,
+      "eff_lr_max": 0.2071,
+      "eff_lr_of_best": 0.1468,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.5249
+      ],
+      "at_edge": false,
+      "batch_of_best": 4,
+      "transform": "bf-v1-RandomAdjustSharpnes_RandomPosterize"
+    },
+    {
+      "nn": "unq-4cd5262150ac10029d243e9ad462f7f1",
+      "k": 5,
+      "best_accuracy": 0.7763,
+      "eff_lr_min": 0.00052,
+      "eff_lr_max": 0.59945,
+      "eff_lr_of_best": 0.31008,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.6234
+      ],
+      "at_edge": false,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomRotation_46"
+    },
+    {
+      "nn": "unq-7683b1cd055925e0050ca8c1caf0680d",
+      "k": 6,
+      "best_accuracy": 0.776,
+      "eff_lr_min": 0.00011,
+      "eff_lr_max": 0.13154,
+      "eff_lr_of_best": 0.07671,
+      "settings_above_best": 2,
+      "accuracies_above_best": [
+        0.7642,
+        0.6983
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-CenterCrop_RandomPosterize_RandomRotation"
+    },
+    {
+      "nn": "unq-42f7d6191385273a5fc5918ebf720f5c",
+      "k": 5,
+      "best_accuracy": 0.7759,
+      "eff_lr_min": 0.00078,
+      "eff_lr_max": 0.86502,
+      "eff_lr_of_best": 0.43317,
+      "settings_above_best": 2,
+      "accuracies_above_best": [
+        0.3025,
+        0.7135
+      ],
+      "at_edge": false,
+      "batch_of_best": 16,
+      "transform": "bf-v1-CenterCrop_Pad_RandomHorizontalFlip"
+    },
+    {
+      "nn": "unq-e928c5cf875eddf85c767433f1e5b49d",
+      "k": 6,
+      "best_accuracy": 0.7758,
+      "eff_lr_min": 0.00017,
+      "eff_lr_max": 0.39091,
+      "eff_lr_of_best": 0.11512,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.6864
+      ],
+      "at_edge": false,
+      "batch_of_best": 4,
+      "transform": "bf-v1-RandomGrayscale_Pad_5"
+    },
+    {
+      "nn": "ast-dimension-AlexNet-f6c63e490b286229e2cedf4c9a31ef1a",
+      "k": 5,
+      "best_accuracy": 0.7756,
+      "eff_lr_min": 0.02219,
+      "eff_lr_max": 0.47312,
+      "eff_lr_of_best": 0.05603,
+      "settings_above_best": 3,
+      "accuracies_above_best": [
+        0.4161,
+        0.521,
+        0.4073
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "norm_256_flip"
+    },
+    {
+      "nn": "unq-f312d70c6cdc40ee68ae7a8b6258142d",
+      "k": 5,
+      "best_accuracy": 0.7752,
+      "eff_lr_min": 0.00856,
+      "eff_lr_max": 0.62033,
+      "eff_lr_of_best": 0.06902,
+      "settings_above_best": 2,
+      "accuracies_above_best": [
+        0.6987,
+        0.7166
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-RandomGrayscale_80"
+    },
+    {
+      "nn": "unq-805ae41626915c9b2dade5b44755c5b0",
+      "k": 5,
+      "best_accuracy": 0.775,
+      "eff_lr_min": 0.01123,
+      "eff_lr_max": 5.17885,
+      "eff_lr_of_best": 0.50851,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.423
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "bf-v1-Pad_RandomPosterize_2"
+    },
+    {
+      "nn": "ast-dimension-AlexNet-bbb9fc415b0cb0e7669e021047efe2a7",
+      "k": 3,
+      "best_accuracy": 0.7745,
+      "eff_lr_min": 0.00324,
+      "eff_lr_max": 0.22887,
+      "eff_lr_of_best": 0.0478,
+      "settings_above_best": 1,
+      "accuracies_above_best": [
+        0.4858
+      ],
+      "at_edge": false,
+      "batch_of_best": 8,
+      "transform": "norm_256_flip"
+    },
+    {
+      "nn": "unq-72e0943887f1ba9dc3b5928a10be689f",
+      "k": 4,
+      "best_accuracy": 0.7744,
+      "eff_lr_min": 7e-05,
+      "eff_lr_max": 0.3578,
+      "eff_lr_of_best": 0.3578,
+      "settings_above_best": 0,
+      "accuracies_above_best": [],
+      "at_edge": true,
+      "batch_of_best": 16,
+      "transform": "bf-v1-RandomAutocontrast_RandomHorizontalFlip"
+    }
+  ],
+  "verdict": "Sparse search records are not evidence of an unexplored space. These 40 architectures have only 3-6 recorded settings each, yet those settings span a median 525x in effective learning rate and only 1 of 40 is clustered within 3x. 21 of 40 have their best setting at or bracketing the peak band, and 29 of 40 fail the assumption-free at-edge test. This is the one-effective-dimension mechanism of 7s/7t reproducing on an independent population: when the space has a single interior optimum, even a 3-point scan spanning four orders of magnitude finds it.",
+  "infrastructure_findings": [
+    {
+      "finding": "<repo>/data is root-owned 0770 from an earlier container run, and ab.nn has no override: ab.nn.util.Const.data_dir = ab_root_path / \"data\". Symptom is a PermissionError on cifar-10-python.tar.gz that reads like a missing download.",
+      "fix": "mount a writable directory at <repo>/data in the job"
+    },
+    {
+      "finding": "ab.nn cannot run from the image site-packages: it materialises metric code into its own package directory at runtime (PermissionError on site-packages/ab/nn/metric/acc.py).",
+      "fix": "the k8s/mkjob.py shadow -- tar the mounted checkout ab/nn into a writable dir and put it first on PYTHONPATH"
+    },
+    {
+      "finding": "ab_root_path follows the WORKING DIRECTORY, not the module: __project_root_path() walks up from Path().absolute() looking for ab/ plus README.md. So cd /a/mm is what keeps data_dir at /a/mm/data, and the shadow does not move it. Load-bearing and non-obvious.",
+      "fix": "keep cwd at the repo root in every LEMUR-path job"
+    }
+  ]
+}

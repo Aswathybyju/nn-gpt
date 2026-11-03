@@ -24,7 +24,12 @@ import pandas as pd
 from ab.nn.util.db.Init import sql_conn, close_conn
 
 # Excluded by measurement, see TRAIN_STAT_PLAN.md:
-#   gradient_norm       r = -0.13 with final accuracy
+#   gradient_norm       POST-CLIP norm of the final batch: the clip lives in each
+#                       architecture's learn() and compute_gradient_norm runs after
+#                       it, so 21.4% of train_stat rows sit at the clip threshold
+#                       (3,225 of 4,000 architectures clip at max_norm=3). Subsumed
+#                       by train_loss + train_accuracy in any case. The original
+#                       r = -0.13 criterion was inadequate; see TRAIN_STAT_PLAN.md s3
 #   epoch_max           non-NULL in 7.2% of candidate rows
 #   samples_per_second  37% of families mix RTX 4090 and RTX 3090
 #   loss_gap/gen_gap    within-family spread 0.015 / 0.008 at epoch 1

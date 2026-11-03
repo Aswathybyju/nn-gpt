@@ -82,9 +82,67 @@ clear in the margin can be an artifact of what varies between groups rather than
 within them. The check that caught it — holding the family fixed — is the same
 check the paired design applies to the main result.
 
+### `gradient_norm` is a post-clip norm, and a fifth of it is a clip threshold
+
+Found while verifying the LEMUR data path (7u): a real 3-epoch run reported
+`gradient_norm` as **2.9999997062495654, 2.999999763935791, 2.9999997293734477**
+while `train_loss` halved from 1.274 to 0.651. A constant beside a changing loss
+is a threshold, not a measurement.
+
+**Where it comes from.** There is no `clip_grad_norm_` anywhere in
+`ab/nn/util/Train.py`. The clip lives in each architecture's own `learn()`:
+
+```python
+loss.backward()
+torch.nn.utils.clip_grad_norm_(self.parameters(), 3)
+self.optimizer.step()
+```
+
+and `compute_gradient_norm(self.model)` is called at `Train.py:341`, **after
+`learn()` returns**. So the recorded value is the norm of the *final batch's*
+gradients *after* they were clipped. `clip_grad_norm_` rescales to exactly
+`max_norm` whenever the true norm exceeds it, so every epoch in which the clip
+binds records the threshold.
+
+**How much of the field this is.** Over 4,000 architectures in the `nn` table,
+**3,225 clip at `max_norm = 3`** and 756 do not clip at all; a handful use 1, 2,
+5 or 10. In `train_stat`'s 305,367 non-null rows:
+
+| value | rows | share |
+|---|---|---|
+| within 3e-3 of **3.0** | **65,266** | **21.4%** |
+| within 1e-3 of 1.0 | 18,037 | 5.9% |
+| exactly 0.0 | 3,520 | 1.2% |
+
+So the clip binds in roughly a fifth of recorded epochs, and in those rows
+`gradient_norm` records **the architecture's clip hyperparameter, not its
+gradients**. (The 1.0 cluster is *not* explained by the clip survey — only four
+architectures use `max_norm = 1` — and is recorded here as unexplained.)
+
+**What this does to section 7k's re-screen.** The finding that `gradient_norm`
+"carries real information" — R^2 0.163 at epoch 10, 0.241 at epoch 20 within
+families — was computed on this mixture, so it is driven by the unsaturated
+rows; for the saturated fifth the field is constant by construction and can
+carry nothing. **The exclusion is therefore over-determined:** subsumed by
+`train_loss` + `train_accuracy` in regression (+0.012 / +0.000 R^2), *and* not a
+measurement of gradients for a fifth of the corpus. The original r = -0.13
+criterion reached the right answer for the wrong reason, and so, partly, did the
+corrected one.
+
+A second measurement caveat applies even to unsaturated rows: the value is a
+**single final-batch snapshot**, not an epoch average, so it is noisy quite apart
+from clipping.
+
+**Query hazard, worth recording.** `SELECT gradient_norm, COUNT(*) ... GROUP BY
+gradient_norm` finds **zero** rows at exactly 3.0 and reports 304,147 distinct
+values out of 305,367 — the field looks continuous and unsaturated. That is a
+float artifact: the post-clip norm is 2.9999997, not 3.0. The saturation is only
+visible after rounding. An exact-equality check on a float column computed by
+rescaling will miss exactly the structure it is looking for.
+
 | excluded | reason (corrected) |
 |---|---|
-| `gradient_norm` | subsumed by `train_loss` + `train_accuracy` (+0.012 / +0.000 R^2). Informative alone (R^2 0.16-0.24); the original r = -0.13 criterion was inadequate |
+| `gradient_norm` | **post-clip norm of the final batch; 21.4% of rows sit at the clip threshold** (above). Subsumed by `train_loss` + `train_accuracy` anyway (+0.012 / +0.000 R^2); informative alone (R^2 0.16-0.24) only on the unsaturated subset |
 | `epoch_max` | non-NULL in 7.2% of candidate rows |
 | `samples_per_second` | 37% of families mix RTX 4090 and RTX 3090 |
 | `test_loss` | within-family rho with accuracy 0.913 even at epoch 10 — redundant with the accuracy both arms already show |

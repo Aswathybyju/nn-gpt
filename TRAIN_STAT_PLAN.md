@@ -1996,7 +1996,7 @@ An honest component-by-component estimate, not a plan.
 |---|---|
 | `pipeline.py` — `run`, `run_iteration`, best tracking, 5-entry feedback memory | **unchanged.** The loop is agnostic: generate -> extract -> validate -> evaluate -> improve. Reusable by subclassing and overriding the four lazy component properties, plus reassigning `self._code_extractor` (one line — that one is not lazy) |
 | `evaluator.get_feedback` and `markov_fork.render_train_history` | **unchanged** |
-| `code_extractor.py` | **replaced.** `extract()` splits ```python fences, then `ast.parse`, then checks `class Net` / `nn.Module` / `__init__` / `forward`. All of it is wrong for two numbers; a JSON parse is ~40 lines |
+| `code_extractor.py` | **replaced by the group's existing `<hp>` convention** — see section 7u. `extract_hyperparam()` in `ab/gpt/util/Util.py:204` already parses `<hp>{...}</hp>`, repairs `< hp >` / `<.hp>` / `</ hp >`, and falls back to fenced JSON. No new extractor is written |
 | `Evaluator.quick_validate` | **replaced.** Currently execs the code, instantiates `Net`, runs a forward pass. Becomes a range check (`lr > 0`, `momentum` in `[0, 1)`), ~15 lines, and its cost goes to zero |
 | `code_generator.py` prompt template; `prompt_improver.py`'s three templates | **rewritten as text** (~150 lines of prompt). The improver's JSON parser is reused as is |
 | `train_script.py` | optimiser line hardcodes `momentum=0.9`. Not modified: `ab/gpt/act/markov_hp/train_hp.py` imports its loaders, epoch loop, evaluation and seeding and adds `--momentum`, so the training code is literally the same and timings stay comparable |
@@ -2666,6 +2666,107 @@ all three** (20 of 60 trials), `lr` spanning 1e-4 to 1.0, momentum median
 decades from the bottom, so **each architecture's recorded best sits at the 67th
 percentile — inside the search range.** The search can rediscover the target, so
 "nothing better in 60 trials" is not confounded with "could not reach it".
+
+### Output format: the group's `<hp>` convention, not a new JSON contract
+
+The LLM emits **`<hp>{"lr": 0.0523, "momentum": 0.41}</hp>`**, parsed by the
+existing `extract_hyperparam()` (`ab/gpt/util/Util.py:204-206`). This replaces
+the bespoke JSON contract an earlier draft specified.
+
+The reason is that the existing parser is **battle-tested against real model
+output**: it repairs `< hp >`, `<.hp>` and `</ hp >`, and falls back to
+```json fences when the tags are missing entirely. A fresh `json.loads` would
+re-encounter every one of those malformations and rediscover the same repairs.
+`ab/gpt/util/hp_family.py:225` already *renders* this exact shape for the family
+block, so the prompt's input and output formats match, and the output is the one
+the group already reads.
+
+### Model and serving, from upstream `origin/main`
+
+Our branch is based on an older `main`; these exist upstream and were read with
+`git show origin/main:<path>` without merging. Nothing in the working tree
+changed.
+
+| file | what it configures |
+|---|---|
+| `conf/llm/qwen3.5_9b.json` | `techwithsergiu/Qwen3.5-9B-bnb-4bit` — pre-quantized **nf4**, nothing else |
+| `conf/llm/qwen3.8_27b.json` | `unsloth/Qwen3.8-27B-unsloth-bnb-4bit` — pre-quantized **nf4**, nothing else |
+| `act/tune/qwen3_8_27B_channel_alter.py` | `context_length=8*1024`, `sft_max_length=4*1024`, `max_new_tokens=8*1024`, `suppress_thinking=True`, `use_unsloth=True`, `use_vllm=True`, `cycles=22` |
+
+Quantization is carried in the checkpoint name, not a config field; the configs
+are one line each.
+
+**`suppress_thinking` is implemented upstream, two ways** — an earlier note in
+this document said it did not exist, which was true of *our checkout* only.
+`Chatbot.py:409-414` passes `{"enable_thinking": False}` to
+`apply_chat_template`, retrying under `chat_template_kwargs` and falling through
+on `TypeError`; `_apply_thinking_suppression` then closes an auto-opened
+`<think>` block textually. Its docstring records that the flag was previously
+"accepted, stored and silently ignored" on two of three code paths — so any
+measurement of thinking-token cost taken before that fix is unreliable.
+
+**Memory at nf4, re-costed.** An earlier estimate here assumed bf16 and
+concluded a 27B could not coexist with training on a 24 GiB card. That premise
+was wrong.
+
+| model | precision | resident | on a 24 GiB card beside ~3 GiB of CIFAR training |
+|---|---|---|---|
+| 9B | nf4 | ~5-6 GiB | comfortable, ~15 GiB spare |
+| 27B | nf4 | **~13-14.7 GiB** | feasible, ~6-7 GiB left for KV cache |
+| 27B | bf16 | ~54 GiB | impossible — the superseded estimate |
+
+The 27B figure is the upstream driver's own: quantizing `lm_head` (2.37 GiB of
+bf16 at a ~248k vocabulary) shrinks what is parked from **14.67 to ~13 GiB**.
+Its comments also record that the local path is tight for a different reason —
+CUDA graphs and the KV cache compete for the last ~1.8 GiB, so
+`NNGPT_VLLM_ENFORCE_EAGER=1` turns graphs off — and that parking 15 GiB into
+32 GiB of host RAM drove that machine 17 GiB into swap.
+
+**The remote vLLM path removes the question.** `AlterNN.py:89-97` takes a
+`vllm_url` and builds a `VLLMClient` instead of loading a local model, so
+generation leaves the training GPU entirely: no contention, no per-trial load
+cycle, and model size stops constraining a 24 GiB card.
+
+`VLLMClient.__init__(base_url, model=None, temperature=0.6, top_k=50, top_p=0.95,
+max_tokens=None, workers=4, timeout=600, retries=3)` — no seed, as expected.
+**But `chat(system_text, user_text, seed=None)` does take one** and forwards it
+as `body['seed']`. What lacks a seed is `chat_iter()`, which calls
+`self.chat(*pair)` with two positional arguments only — and `AlterNN.py:162`
+uses `chat_iter`. So per-request seeding is available to a sequential loop that
+calls `chat()` directly; it is simply not plumbed through the batch path.
+`chat_iter` parallelises with `ThreadPoolExecutor(workers=4)` and yields
+`(index, text_or_None)` from `as_completed`, so completion order is
+non-deterministic but each result carries its index.
+
+### Trial 1 is pinned identically in both arms
+
+The paired design needs both arms to start from the same first proposal. Rather
+than chase seed control through a remote server — available per-call, absent
+from the batch path, and dependent on server-side batching behaviour we do not
+control — **trial 1 is fixed to the same `(lr, momentum)` in both arms**.
+
+This costs nothing the experiment wants: the treatment is a history block, and
+**there is no history at trial 1**, so the arms could not differ there even in
+principle. Divergence begins at trial 2, the first prompt in which the arms
+actually differ. Pinning the values is strictly stronger than seeding, because
+it guarantees identity regardless of what the server does with batching.
+
+### Model-adequacy pre-check, before the arms
+
+A control-arm-only run: **one architecture, 30 trials, ~2.4 GPU-hours.** Its
+purpose is to establish that the model sits in a regime where a treatment effect
+could be observed at all. Three readings, **pre-registered here before it runs**:
+
+| trials to first reach the good region | reading |
+|---|---|
+| **never** | model too weak — the treatment is unmeasurable, because a hint cannot help a searcher that never arrives |
+| **under ~5** | model too strong — no room for a hint to matter |
+| **~10-20** | the right regime — proceed to both arms |
+
+Outside that band the gate's outcome would be uninformative about the
+diagnostics either way, which is the same failure mode section 7v collects:
+a result that looks like a statement about the treatment but is really a
+statement about the search.
 
 ### Budget: 60 trials with a pre-registered extension rule
 

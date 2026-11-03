@@ -1,0 +1,142 @@
+{
+  "config": {
+    "task": "img-classification",
+    "dataset": "cifar-10",
+    "metric": "acc",
+    "model": "1e4a3a8ca91c6d1bfa2fecc9b9006318"
+  },
+  "hyperparameters": {
+    "lr": 0.01,
+    "momentum": 0.9,
+    "batch": 32,
+    "epoch": 3,
+    "dropout": 0.2,
+    "transform": "bf-v1-RandomHorizontalFlip_RandomAutocontrast_RandomGrayscale",
+    "duration_seconds": 215.48,
+    "epoch_max": 3,
+    "train_stat": {
+      "train_loss": 0.6512162347710903,
+      "test_loss": 0.8221055553934444,
+      "train_accuracy": 0.77932,
+      "gradient_norm": 2.9999997293734477,
+      "samples_per_second": 696.3368319822871,
+      "best_accuracy": 0.7347,
+      "best_epoch": 3,
+      "cpu_count": 128,
+      "cpu_type": "x86_64",
+      "cpu_usage_percent": 1.5,
+      "total_ram_kb": 263716016.0,
+      "occupied_ram_kb": 69944084.0,
+      "ram_usage_percent": 30.1,
+      "gpu_type": "NVIDIA GeForce RTX 3090",
+      "gpu_memory_kb": 1216793.0,
+      "gpu_total_memory_kb": 24703168.0,
+      "occupied_gpu_memory_kb": 267166.0,
+      "gpu_memory_usage_percent": 1.08
+    },
+    "metric_acc": 0.7347
+  },
+  "model_info": {
+    "input_shape": [
+      1,
+      3,
+      64,
+      64
+    ],
+    "output_shape": [
+      10
+    ]
+  },
+  "system_info": {
+    "cpu_type": "x86_64",
+    "cpu_count": 128,
+    "total_ram_kb": 263716016.0,
+    "gpu_type": "NVIDIA GeForce RTX 3090",
+    "gpu_total_memory_kb": 24703168.0
+  },
+  "training_summary": {
+    "total_epochs": 3,
+    "best_accuracy": 0.7347,
+    "best_epoch": 3,
+    "final_train_loss": 0.6512162347710903,
+    "final_test_loss": 0.8221055553934444,
+    "final_accuracy": 0.7347,
+    "gpu_memory_kb": 1216793.0
+  },
+  "final_resource_usage": {
+    "occupied_ram_kb": 69945588.0,
+    "ram_usage_percent": 30.1,
+    "cpu_usage_percent": 1.1,
+    "occupied_gpu_memory_kb": 267166.0,
+    "gpu_memory_usage_percent": 1.08
+  },
+  "learning_curves": {
+    "epochs": [
+      1,
+      2,
+      3
+    ],
+    "train_loss": [
+      1.2738256851069376,
+      0.8341436518245375,
+      0.6512162347710903
+    ],
+    "test_loss": [
+      1.3326251144988088,
+      0.9574048144939228,
+      0.8221055553934444
+    ],
+    "train_accuracy": [
+      0.5574,
+      0.71478,
+      0.77932
+    ],
+    "test_accuracy": [
+      0.5419,
+      0.6865,
+      0.7347
+    ],
+    "lr": [
+      0.01,
+      0.01,
+      0.01
+    ],
+    "gradient_norm": [
+      2.9999997062495654,
+      2.999999763935791,
+      2.9999997293734477
+    ]
+  },
+  "epoch_details": [
+    {
+      "epoch": 1,
+      "train_loss": 1.2738256851069376,
+      "test_loss": 1.3326251144988088,
+      "train_accuracy": 0.5574,
+      "test_accuracy": 0.5419,
+      "lr": 0.01,
+      "gradient_norm": 2.9999997062495654,
+      "samples_per_second": 697.2137364442941
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.8341436518245375,
+      "test_loss": 0.9574048144939228,
+      "train_accuracy": 0.71478,
+      "test_accuracy": 0.6865,
+      "lr": 0.01,
+      "gradient_norm": 2.999999763935791,
+      "samples_per_second": 696.7754443708947
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.6512162347710903,
+      "test_loss": 0.8221055553934444,
+      "train_accuracy": 0.77932,
+      "test_accuracy": 0.7347,
+      "lr": 0.01,
+      "gradient_norm": 2.9999997293734477,
+      "samples_per_second": 696.3368319822871
+    }
+  ]
+}

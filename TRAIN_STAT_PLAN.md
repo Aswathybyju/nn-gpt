@@ -2527,6 +2527,101 @@ alongside the losses and accuracies, so **the full `train_stat` field set is
 genuinely produced here** — unlike markov's three fields (section 7r). That was
 the original reason for switching to the LEMUR path and it holds.
 
+### Provenance of the treatment, from git
+
+The experimental arm shows `train_loss` and `train_accuracy`; the control shows
+only `accuracy`. Those two columns exist because of specific commits, and the
+exact chain matters for the write-up.
+
+| what | commit | date | PR |
+|---|---|---|---|
+| computes `train_loss`, `train_accuracy`, `test_loss`; creates `_save_training_summary()` | `6ebc20c7c46` (= `3eb32113a8a`, same change) | 2025-12-18 | **#134** |
+| adds hardware metrics, memory in kb, and **moves `training_summary.json` from `save_path` to `out_dir`** | `9340abe42d6`, `078f74eb9e1`, `df0b0440654` | — | **#142** |
+| adds the `train_stat` table | `e549a447dbf` | 2026-06-07 | **#251** (`add-train-stat-table`) |
+| fixes `json_train_to_db` so the metrics reach the table | `f08deb19116` | 2026-06-22 | **#262** (`feature/train-stat-db-backfill`) |
+
+**PR 142 did not add the treatment columns** — it added the hardware fields,
+which section 3 excludes as describing the machine rather than the network. An
+earlier draft of this document said "the fields PR 134/142 added"; only 134 is
+correct.
+
+Not ours, for contrast: the `{epoch}.json` writing mechanism is `7f2a641749a`
+(ABrain-One, 2024-12-29) and `save_results` is `2ad113d4434` (2025-01-06). The
+control arm's `accuracy` column predates all of it on `stat`.
+
+### The data path, verified end to end
+
+`check_nn` returns four scalars — name, accuracy, accuracy-to-time, code quality
+— and no per-epoch data, so the loop cannot render a history block from its
+return value. Four candidate routes were considered: query back a
+`save_to_db=True` row; call `Train` directly and read `epoch_history`; add a
+return path to nn-dataset (forbidden, additive-only); or set `save_path` and
+read what gets written.
+
+The last one works, **and not where it first appears to**. The
+`<save_path>/{epoch}.json` write is nested inside `if self.save_to_db:`
+(`Train.py:506-511`), so under the read-only constraint it never fires — a run
+with `save_to_db=False` leaves `save_path` empty. What does fire is
+`_save_training_summary()`, gated only on `save_path and self.epoch_history`,
+which writes to **`<repo>/out/training_summary.json`** — `save_path` acts purely
+as a feature flag and its value is ignored for this file. That relocation is
+PR 142's one-line `summary_path = Path(self.save_path) / ...` ->
+`summary_path = out_dir / ...`.
+
+Demonstrated on a real call — `unq-1e4a3a8c`, batch 32, lr 0.01, momentum 0.9,
+3 epochs, `save_to_db=False`, artifact
+`results/verification/hp_lemur_datapath_demo.json`:
+
+| epoch | train_loss | train_accuracy | test_loss | test_accuracy |
+|---|---|---|---|---|
+| 1 | 1.273826 | 0.557400 | 1.332625 | 0.541900 |
+| 2 | 0.834144 | 0.714780 | 0.957405 | 0.686500 |
+| 3 | 0.651216 | 0.779320 | 0.822106 | 0.734700 |
+
+`learning_curves` carries per-epoch arrays for `train_loss`, `train_accuracy`,
+`test_loss`, `test_accuracy`, `lr` and `gradient_norm`; `epoch_details` carries
+all seven fields per epoch. **No table changed.**
+
+**One sequencing constraint.** That path is fixed and overwritten on every call,
+so the loop must read and copy it immediately after each `check_nn` returns,
+before the next trial starts. Trials cannot run in parallel within one process.
+
+### The search is parameterised in effective-lr space
+
+See section 7v for why. The sampled quantity is the effective learning rate
+itself, with momentum conditioned on it so every draw is valid:
+
+```
+eff_lr   ~ log-uniform [target/100, target*10]
+momentum ~ uniform [max(0, 1 - 1/eff_lr), 0.99]
+lr        = eff_lr * (1 - momentum)
+```
+
+The momentum floor is what makes `lr <= 1` exact rather than rejection-based; a
+naive version discarded 8-20% of draws and pulled coverage on `unq-0513aa00`
+down to 16%. Verified over 60,000 draws per architecture: **34% above target on
+all three** (20 of 60 trials), `lr` spanning 1e-4 to 1.0, momentum median
+0.56-0.65, no rejections.
+
+**A property of the range, which is what makes a null interpretable.**
+`[target/100, target*10]` spans three decades in log space with the target two
+decades from the bottom, so **each architecture's recorded best sits at the 67th
+percentile — inside the search range.** The search can rediscover the target, so
+"nothing better in 60 trials" is not confounded with "could not reach it".
+
+### Budget: 60 trials with a pre-registered extension rule
+
+Best-so-far is reported at trials **30, 45 and 60** per architecture.
+
+* **Still improving across its final 15 trials -> extend that architecture to
+  90.**
+* **Flat across its final 15 -> stop at 60.**
+
+Flat at 60 licenses the claim *no headroom in the space*. Still climbing at 90
+licenses only *found nothing in 90 trials* and is reported **inconclusive for
+that architecture**. ~13.2 GPU-hours baseline, ~20h worst case, and the extra is
+spent only where it buys evidence.
+
 ### Status
 
 The gate — 60 TPE plus 30 uniform random trials over `(lr, momentum)` on each of
@@ -2594,13 +2689,54 @@ That is why section 7t paid 50% extra for 30 uniform-random trials per
 architecture, and the expense was justified by the result: without them the
 conclusion would have been that the space is one-dimensional, which is false.
 
-### Why both belong here
+### The univariate sampler, which cannot aim at a curved optimum
+
+The third instance, and the one that nearly shaped the section 7u gate.
+
+`TPESampler` defaults to **`multivariate=False`**: it builds a product of
+per-parameter marginals. The quantity that governs accuracy here is
+`lr / (1 - momentum)` — **a hyperbola in the native coordinates**, large when
+`lr` is large *or* when `momentum` approaches 1, not when both are jointly
+large. A product-of-marginals model can only represent axis-aligned boxes, so
+good trials spread along the hyperbola widen *both* marginals, and independent
+draws from the widened marginals land mostly off the ridge:
+
+| draw from widened marginals | effective lr |
+|---|---|
+| `lr = 1.0`, `momentum = 0.99` | **100** |
+| `lr = 0.015`, `momentum = 0.33` | **0.022** |
+
+Four orders of magnitude apart, both "consistent with" the same two marginals.
+**More trials do not fix a model that cannot represent the shape.** A null from
+such a search would say the region was searched when the sampler could never aim
+at it.
+
+Reparameterising turns the hyperbola into an axis: sample `eff_lr` directly and
+derive `(lr, momentum)` from it (section 7u). The sampler is then modelling the
+quantity that actually matters, along a coordinate it can represent.
+
+**`multivariate=True` is available and is declined, on the record.** It would
+model the correlation, but it still fits axis-aligned marginals under a copula
+and handles curved optima poorly — and decisively, **sections 7s and 7t used
+default TPE**, so changing the sampler would break comparability with every
+prior search in this project. Reparameterising changes the *space*,
+deliberately and recorded, and leaves the sampler identical.
+
+Note that marginal coverage was never the problem, which is why the first
+attempted fix failed. Under the native parameterisation, 8.9% of draws already
+exceed `eff_lr` 0.976 and 17.6% exceed 0.358 — the region is not improbable, it
+is merely unaimable. Sampling `eff_lr` log-uniform to 10x the target gave 9.1%,
+statistically identical. Only centring the range on the target (section 7u)
+raises it to 34%, and only reparameterising makes the sampler able to exploit it.
+
+### Why all three belong here
 
 Each one turns the behaviour of the search into an apparent property of the thing
 being searched. The first makes a region look bad when it was never measured; the
-second makes a parameter look irrelevant when it was never varied. Neither is
-visible in the output of the search itself — both require either a second design
-or an explicit check for the signature.
+second makes a parameter look irrelevant when it was never varied; the third
+would make a region look searched when the sampler's model could not aim at it.
+None is visible in the output of the search itself — each requires a second
+design, an explicit check for the signature, or a change of coordinates.
 
 ## 8. Files (all new; no existing file modified)
 
